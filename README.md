@@ -14,5 +14,5 @@
 2. Run the app
 
    ```
-   $ streamlit run temp.py
+   $ streamlit run streamlit_app.py
    ```

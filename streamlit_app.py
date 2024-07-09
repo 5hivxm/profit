@@ -72,12 +72,6 @@ rf_ransearch = RandomizedSearchCV(estimator=rf_final, param_distributions=random
 
 rf_ransearch.fit(X_train_val,y_train_val)
 
-print("MSE:" , mean_squared_error(y_test,rf_ransearch.predict(X_test)))
-best_models.append(['rf_ransearch', rf_ransearch.score(X_train_val, y_train_val),
-                    mean_squared_error(y_test,rf_ransearch.predict(X_test)),
-                    rf_ransearch.score(X_test, y_test)])
-
-
 # GridSearchCV
 # Using best parameters from RandomSearchCV
 param_grid = {
@@ -93,6 +87,10 @@ grid_search = GridSearchCV(estimator = rf_final, param_grid = param_grid,
                           cv = 3, n_jobs = -1, verbose = 2)
 
 grid_search.fit(X_train_val,y_train_val)
+best_models.append(['rf_gridsearch', grid_search.score(X_train_val, y_train_val),
+                    mean_squared_error(y_test,grid_search.predict(X_test)),
+                    grid_search.score(X_test, y_test)])
+
 best_models = pd.DataFrame(best_models, columns=['Model', 'Train Score', 'MSE', 'Test/Validation Score'])
 st.subheader(
     "Random Forest Model Comparison"
@@ -198,6 +196,25 @@ full.columns = columns
 full = full[['Original Demand', 'Optimal Demand', 'Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']]
 full[['Original Demand', 'Optimal Demand']] = full[['Original Demand', 'Optimal Demand']].round()
 full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']] = full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']].round(2)
+
+# Displaying Percent Changes and Elasticities
+original_revenue = sum(full['Original Demand']*full['Original Price'])
+optimal_revenue = sum(full['Optimal Demand']*full['Optimal Price'])
+original_profit = sum(full['Original Profit'])
+optimal_profit = sum(full['Max Profit'])
+original_demand = sum(full['Original Demand'])
+optimal_demand = sum(full['Optimal Demand'])
+
+demands = ['Demand', original_demand, optimal_demand, round((optimal_demand-original_demand)/original_demand*100, 2),
+           (optimal_demand-original_demand)/(optimal_revenue - original_revenue)]
+revs = ['Revenue', original_revenue, optimal_revenue, round((optimal_revenue - original_revenue)/original_revenue*100, 2),
+        (optimal_revenue-original_revenue)/sum(data["ProductionCost"])]
+profits = ['Profit', original_profit, optimal_profit, round((optimal_profit-original_profit)/original_profit*100, 2),
+           (optimal_profit-original_profit)/(optimal_revenue-original_revenue)]
+
+columns = ['Feature', 'Original', 'Optimized', 'Percent Change', 'Elasticity']
+res = pd.DataFrame([demands, revs, profits], columns=columns)
+
 st.subheader(
     "Full Dataset Comparing Demands, Prices, Profits"
 )
@@ -211,18 +228,8 @@ ax.set_xlabel('Price')
 ax.set_ylabel('Profit')
 st.pyplot(fig)
 
-
-# Displaying Percent Changes
-demands = ['Demand', sum(full['Original Demand']), sum(full['Optimal Demand']),
-           round(sum(full['Optimal Demand']-full['Original Demand'])/sum(full['Original Demand'])*100, 2)]
-revs = ['Revenue', sum(full['Original Demand']*full['Original Price']), sum(full['Optimal Demand']*full['Optimal Price']),
-        round(sum(full['Optimal Demand']*full['Optimal Price'] - full['Original Demand']*full['Original Price'])/sum(full['Original Demand']*full['Original Price'])*100, 2)]
-profits = ['Profit', sum(full['Original Profit']), sum(full['Max Profit']),
-           round(sum(full['Max Profit']- full['Original Profit'])/sum(full['Original Profit'])*100, 2)]
-columns = ['Feature', 'Original', 'Optimized', 'Percent Change']
-res = pd.DataFrame([demands, revs, profits], columns=columns)
 st.subheader(
-    "Increases in Demand, Revenue, Profit"
+    "Increases in Demand, Revenue, Profit, Elasticities"
 )
 st.table(res)
 
