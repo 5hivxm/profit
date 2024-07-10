@@ -1,10 +1,8 @@
 import streamlit as st
-from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression, Lasso, Ridge, ElasticNet
+from sklearn.linear_model import ElasticNet
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -198,19 +196,21 @@ full[['Original Demand', 'Optimal Demand']] = full[['Original Demand', 'Optimal 
 full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']] = full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']].round(2)
 
 # Displaying Percent Changes and Elasticities
-original_revenue = sum(full['Original Demand']*full['Original Price'])
-optimal_revenue = sum(full['Optimal Demand']*full['Optimal Price'])
+original_price = sum(full['Original Price'])
+optimal_price = sum(full['Optimal Price'])
 original_profit = sum(full['Original Profit'])
 optimal_profit = sum(full['Max Profit'])
 original_demand = sum(full['Original Demand'])
 optimal_demand = sum(full['Optimal Demand'])
+original_revenue = sum(full['Original Price']*full['Original Demand'])
+optimal_revenue = sum(full['Optimal Price']*full['Optimal Demand'])
 
 demands = ['Demand', original_demand, optimal_demand, round((optimal_demand-original_demand)/original_demand*100, 2),
-           (optimal_demand-original_demand)/(optimal_revenue - original_revenue)]
+           (optimal_demand-original_demand)/(optimal_price - original_price)]
 revs = ['Revenue', original_revenue, optimal_revenue, round((optimal_revenue - original_revenue)/original_revenue*100, 2),
-        (optimal_revenue-original_revenue)/sum(data["ProductionCost"])]
+        (optimal_revenue-original_revenue)/(optimal_price - original_price)]
 profits = ['Profit', original_profit, optimal_profit, round((optimal_profit-original_profit)/original_profit*100, 2),
-           (optimal_profit-original_profit)/(optimal_revenue-original_revenue)]
+           (optimal_profit-original_profit)/(optimal_price - original_price)]
 
 columns = ['Feature', 'Original', 'Optimized', 'Percent Change', 'Elasticity']
 res = pd.DataFrame([demands, revs, profits], columns=columns)
