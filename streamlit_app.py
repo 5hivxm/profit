@@ -1,6 +1,6 @@
 import streamlit as st
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
 from sklearn.linear_model import ElasticNet
 import pandas as pd
@@ -18,7 +18,7 @@ st.subheader(
 # Universal
 data = pd.read_csv('price_optimization_dataset.csv')
 y = data['Demand']
-X = data.drop(['ProductID', 'Demand'], axis=1)
+X = data.drop(['ProductID', 'Product', 'Demand'], axis=1)
 best_models = []
 X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
 X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
@@ -182,6 +182,9 @@ for i in range(len(X)):
   results.append([opt_demand, opt_price, max_profit])
 
 results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit'])
+results['Product'] = data['Product']
+results = results[['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit']]
+
 st.subheader(
     "Dataset of Optimal Demand, Prices for Maximum Profit"
 )
@@ -189,9 +192,9 @@ st.dataframe(results)
 
 # Displaying Comparison Table
 full = pd.merge(results, data[['Demand', 'Price', 'Profit']], left_index=True, right_index=True)
-columns = ['Optimal Demand', 'Optimal Price', 'Max Profit', 'Original Demand', 'Original Price', 'Original Profit']
+columns = ['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit', 'Original Demand', 'Original Price', 'Original Profit']
 full.columns = columns
-full = full[['Original Demand', 'Optimal Demand', 'Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']]
+full = full[['Product', 'Original Demand', 'Optimal Demand', 'Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']]
 full[['Original Demand', 'Optimal Demand']] = full[['Original Demand', 'Optimal Demand']].round()
 full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']] = full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']].round(2)
 
@@ -219,6 +222,7 @@ st.subheader(
     "Full Dataset Comparing Demands, Prices, Profits"
 )
 st.dataframe(full)
+
 # Plotting original vs optimal Profit
 fig, ax = plt.subplots()
 sns.scatterplot(x='Original Price', y='Original Profit', data=full, s=50, color='blue', ax=ax)
