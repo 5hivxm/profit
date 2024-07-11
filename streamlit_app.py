@@ -15,6 +15,7 @@ st.subheader(
 )
 
 
+
 # Universal
 data = pd.read_csv('price_optimization_dataset.csv')
 y = data['Demand']
@@ -111,7 +112,7 @@ prices = model.predict(X_prices)
 def find_results(graph_data, item_data, price_range, model):
   best_price = None
   max_profit = -np.inf
-
+  max_og = item_data['Price']
   for price in price_range:
       item_data['Price'] = price
       cost = item_data['ProductionCost']
@@ -120,12 +121,12 @@ def find_results(graph_data, item_data, price_range, model):
       demand = model.predict(pd.DataFrame([item_data]))[0]
       profit = (price - cost) * demand
       graph_data.append([price, demand, profit])
-
+  
       if profit > max_profit:
           max_profit = profit
           best_price = price
-
-  return demand, best_price, max_profit
+  
+  return demand, best_price, max_og, max_profit
 
 # Test the optimization for dataset
 results = []
@@ -134,16 +135,16 @@ i=0
 sample_item = X.iloc[i].copy()
 sample_price = prices[i]
 price_range = np.linspace(sample_item['Price'], sample_price, 100)
-opt_demand, opt_price, max_profit = find_results(graph_data, sample_item, price_range, rf_final)
-results.append([opt_demand, opt_price, max_profit])
+opt_demand, opt_price, max_og, max_profit = find_results(graph_data, sample_item, price_range, rf_final)
+results.append([opt_demand, opt_price, max_og, max_profit])
 
-results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit'])
+results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
 graph_data = pd.DataFrame(graph_data, columns=['Price', 'Demand', 'Profit'])
 
 # Plotting Example Data
 fig, ax = plt.subplots()
 sns.lineplot(data=graph_data, x="Price", y="Profit", ax=ax)
-sns.scatterplot(x='Optimal Price', y='Max Profit', data=results, s=50, color='red', ax=ax)
+sns.scatterplot(x='Optimal Price', y='Max Profit (Optimal Price)', data=results, s=50, color='red', ax=ax)
 ax.set_title('Optimal Price for Profit (Item 0)')
 ax.set_xlabel('Price')
 ax.set_ylabel('Profit')
@@ -179,11 +180,12 @@ for i in range(len(X)):
   sample_price = prices[i]                # Using predicted price as max/min price in price range
   price_range = np.linspace(sample_item['Price'], sample_price, 100)
   opt_demand, opt_price, max_profit = find_results(sample_item, price_range, rf_final)
-  results.append([opt_demand, opt_price, max_profit])
+  max_og = (X.iloc[i]['Price']-X.iloc[i]['ProductionCost']) * opt_demand
+  results.append([opt_demand, opt_price, max_og, max_profit])
 
-results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit'])
+results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
 results['Product'] = data['Product']
-results = results[['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit']]
+results = results[['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 
 st.subheader(
     "Dataset of Optimal Demand, Prices for Maximum Profit"
@@ -192,17 +194,20 @@ st.dataframe(results)
 
 # Displaying Comparison Table
 full = pd.merge(results, data[['Demand', 'Price', 'Profit']], left_index=True, right_index=True)
-columns = ['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit', 'Original Demand', 'Original Price', 'Original Profit']
+columns = ['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)',
+           'Max Profit (Optimal Price)', 'Original Demand', 'Original Price', 'Original Profit']
 full.columns = columns
-full = full[['Product', 'Original Demand', 'Optimal Demand', 'Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']]
+full = full[['Product', 'Original Demand', 'Optimal Demand', 'Original Price',
+             'Optimal Price', 'Original Profit', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 full[['Original Demand', 'Optimal Demand']] = full[['Original Demand', 'Optimal Demand']].round()
-full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']] = full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit']].round(2)
+full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\
+full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
 
 # Displaying Percent Changes and Elasticities
 original_price = sum(full['Original Price'])
 optimal_price = sum(full['Optimal Price'])
 original_profit = sum(full['Original Profit'])
-optimal_profit = sum(full['Max Profit'])
+optimal_profit = sum(full['Max Profit (Optimal Price)'])
 original_demand = sum(full['Original Demand'])
 optimal_demand = sum(full['Optimal Demand'])
 original_revenue = sum(full['Original Price']*full['Original Demand'])
@@ -215,7 +220,7 @@ revs = ['Revenue', original_revenue, optimal_revenue, round((optimal_revenue - o
 profits = ['Profit', original_profit, optimal_profit, round((optimal_profit-original_profit)/original_profit*100, 2),
            (optimal_profit-original_profit)/(optimal_price - original_price)]
 
-columns = ['Feature', 'Original', 'Optimized', 'Percent Change', 'Elasticity']
+columns = ['Feature', 'Original Value', 'Optimized Value', 'Percent Increase', 'Elasticity on Price Change']
 res = pd.DataFrame([demands, revs, profits], columns=columns)
 
 st.subheader(
@@ -225,11 +230,12 @@ st.dataframe(full)
 
 # Plotting original vs optimal Profit
 fig, ax = plt.subplots()
-sns.scatterplot(x='Original Price', y='Original Profit', data=full, s=50, color='blue', ax=ax)
-sns.scatterplot(x='Optimal Price', y='Max Profit', data=full, s=50, color='red', ax=ax)
+sns.scatterplot(x='Original Price', y='Original Profit', data=full, label='Original Prices', s=50, color='blue', ax=ax)
+sns.scatterplot(x='Optimal Price', y='Max Profit (Optimal Price)', data=full, label='Optimal Prices', s=50, color='red', ax=ax)
 ax.set_title('Price vs Profit')
 ax.set_xlabel('Price')
 ax.set_ylabel('Profit')
+ax.legend()
 st.pyplot(fig)
 
 st.subheader(
