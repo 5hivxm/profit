@@ -8,9 +8,9 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
 from scipy.optimize import minimize_scalar
-
+import math
 
 # Show app title and description
 st.set_page_config(page_title="Optimal Price", page_icon="")
@@ -27,119 +27,72 @@ with st.form("input_form"):
 # Generate random data
 np.random.seed(42)
 
-df = pd.read_csv('price_optimization_dataset.csv')
+df = pd.read_csv('luxury_real_data.csv')
 
-brand_names = ["Gucci", "Hermes", "Louis Vuitton", "Dior", "Prada"]
-brands = []
-for brand in range(1, 101):
-  index = (brand-1)%5
-  brand_name = brand_names[index]
-  brands.append(brand_name)
-
-df['BrandName'] = brands
-df = df[['BrandName', 'Product', 'Price', 'ProductionCost', 'CompetitorPrice', 'Demand']]
-
-st.dataframe(df)
-
-# Define features and target
-categorical_features = ['BrandName', 'Product']
-numeric_features = ['Price', 'ProductionCost', 'CompetitorPrice']
+categorical_features = ['Brand', 'Product', 'Competitor']
+numeric_features = ['Price', 'Cost', 'Competitor Price']
 target_feature = 'Demand'
 
-X = df[categorical_features + numeric_features]
-y = df[target_feature]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Instead of LabelEncoder, try using mapping so at the end, you can reverse it
+le = LabelEncoder()
+df[categorical_features] = df[categorical_features].apply(
+    lambda col: le.fit_transform(col))
 
-# Preprocessing
-numeric_transformer = StandardScaler()
-categorical_transformer = OneHotEncoder(categories='auto', drop='first', sparse_output=False)
- 
-# Fit transformers on training data
-X_train_numeric = numeric_transformer.fit_transform(X_train[numeric_features])
-X_train_categorical = categorical_transformer.fit_transform(X_train[categorical_features])
- 
-X_train_transformed = np.hstack((X_train_numeric, X_train_categorical))
-X_test_numeric = numeric_transformer.transform(X_test[numeric_features])
-X_test_categorical = categorical_transformer.transform(X_test[categorical_features])
-X_test_transformed = np.hstack((X_test_numeric, X_test_categorical))
- 
-# Train ElasticNet model
-model = ElasticNet()
-param_grid = {
-    'alpha': [0.001, 0.01, 0.1, 1.0, 10.0, 50.0, 100.0],
-    'l1_ratio': [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
-}
-grid_search = GridSearchCV(model, param_grid=param_grid, cv=5)
-grid_search.fit(X_train_transformed, y_train)
- 
-# Evaluate the model
-y_pred = grid_search.predict(X_test_transformed)
-X_test = X_test.reset_index(drop=True)
+# Define features and target
+
+X = df.drop(target_feature, axis=1)
+y = df[target_feature]
+
+X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
+X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
+
+# Training model on training set
+# Predicting Demands
+# Training on combined training+validation set
+X_train_val = pd.concat([X_train,X_val])
+y_train_val = pd.concat([y_train,y_val])
+rf_final = RandomForestRegressor(random_state=42)
+rf_final.fit(X_train_val,y_train_val)
+y_pred = rf_final.predict(X)
 
 # Define functions for demand and profit calculation
-def demand_function(price, competitor_price, predicted_demand):
-    sensitivity = 2
-    competitor_influence = 0.75
-    return predicted_demand - sensitivity * (price - competitor_price) * competitor_influence
+def demand_function(item_data, model):
+    return model.predict(pd.DataFrame([item_data]))[0]
  
-def calculate_profit(price, cost, competitor_price, predicted_demand):
-    demand = demand_function(price, competitor_price, predicted_demand)
-    profit = (price - cost) * demand
-    return profit
- 
-def optimize_price(cost, competitor_price, predicted_demand, price_bounds=(100, 500)):
-    def objective(price):
-        return -calculate_profit(price, cost, competitor_price, predicted_demand)
-    result = minimize_scalar(objective, bounds=price_bounds, method='bounded')
-    optimal_price = result.x
-    max_profit = -result.fun
-    return optimal_price, max_profit
- 
-# Handle user input
-if submitted:
-    user_input_categorical = pd.DataFrame([[brand_name, 1]], columns=categorical_features)
-    user_input_categorical = categorical_transformer.transform(user_input_categorical)   
-    user_input_numeric = pd.DataFrame([[cost, 0, competitor_price]], columns=numeric_features)
-    user_input_numeric = numeric_transformer.transform(user_input_numeric)
-    user_input_transformed = np.hstack((user_input_numeric, user_input_categorical))
-    # Predict demand for user input
-    user_predicted_demand = grid_search.predict(user_input_transformed)[0]
- 
-    # Optimize price for user input
-    optimal_price, max_profit = optimize_price(cost, competitor_price, user_predicted_demand)
-   
-    # Display results
-    st.write(f'Optimal Price: {optimal_price:.2f}')
-    st.write(f'Maximum Profit: {max_profit:.2f}')
- 
-# Collect results
+def calculate_profit(item_data, price_range, model):
+    best_price = None
+    max_profit = -np.inf
+
+    for price in price_range:
+        item_data['Price'] = price
+        cost = item_data['Cost']
+        demand = demand_function(item_data, model)
+        profit = (price - cost) * demand
+
+        if profit > max_profit:
+            max_profit = profit
+            best_price = price
+
+    return demand, best_price, max_profit
+
 results = []
- 
-for idx, row in X_test.iterrows():
-    production_cost = row['ProductionCost']
-    competitor_price = row['CompetitorPrice']
-    predicted_demand = y_pred[idx]
-   
-    optimal_price, max_profit = optimize_price(production_cost, competitor_price, predicted_demand)
-   
-    results.append({
-        'BrandName': row['BrandName'],
-        'Product': row['Product'],
-        'ProductionCost': production_cost,
-        'CompetitorPrice': competitor_price,
-        'PredictedDemand': predicted_demand,
-        'OptimizedPrice': optimal_price
-    })
- 
-# Format results
-results_df = pd.DataFrame(results)
-st.subheader("Original Dataset Predictions") 
-st.table(results_df)
 
+for i in range(len(X)):
+    # Instance of dataset
+    sample_item = X.iloc[i].copy()
+    # Using predicted price as max/min price in price range
+    sample_price = sample_item['Price']+100
+    price_range = np.linspace(sample_item['Price'], sample_price, 100)
+    # Predicting demand, price, profit
+    opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf_final)
+    max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
+    results.append([opt_demand, opt_price, max_og, max_profit])
 
-st.title("Modeling Low Volume Transactoins")
+results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
+results['Product'] = df['Product']
+results = results[['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
+
 st.subheader(
-    "Sales Dataset"
+    "Dataset of Optimal Demand, Prices for Maximum Profit"
 )
-
-
+st.dataframe(results)

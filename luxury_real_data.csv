@@ -1,0 +1,41 @@
+Brand,Product,Cost,Price,Competitor,Competitor Price,Demand
+Gucci,Handbag,253.5,1690,Balenciaga,1200,18
+Gucci,Women's Shoes,178.5,1190,Balenciaga,1150,55
+Gucci,Men's Shoes,163.5,1090,Balenciaga,1000,72
+Gucci,Men's Belts,81,540,Balenciaga,450,46
+Gucci,Men's Wallets,60,400,Balenciaga,375,30
+Gucci,Women's Belt,78,520,Balenciaga,420,24
+Gucci,Women's Hat,93,620,Balenciaga,495,70
+Gucci,Women's Sunglasses,74.25,495,Balenciaga,530,41
+Gucci,Women's Wallet,81,540,Balenciaga,550,47
+Gucci,Men's Shirt,180,1200,Balenciaga,1490,62
+Burberry,Handbag,292.5,1950,Hermes,3950,12
+Burberry,Women's Shoes,119.25,795,Hermes,780,36
+Burberry,Men's Shoes,97.5,650,Hermes,920,44
+Burberry,Men's Belts,82.5,550,Hermes,895,73
+Burberry,Men's Wallets,82.5,550,Hermes,950,39
+Burberry,Women's Belt,88.5,590,Hermes,770,65
+Burberry,Women's Hat,72,480,Hermes,485,86
+Burberry,Women's Sunglasses,42,280,Hermes,310,53
+Burberry,Women's Wallet,88.5,590,Hermes,415,100
+Burberry,Men's Shirt,103.5,690,Hermes,1825,73
+Prada,Handbag,765,5100,Chanel,1490,19
+Prada,Women's Shoes,183,1220,Chanel,3950,23
+Prada,Men's Shoes,187.5,1250,Chanel,780,62
+Prada,Men's Belts,108.75,725,Chanel,920,75
+Prada,Men's Wallets,119.25,795,Chanel,895,79
+Prada,Women's Belt,119.25,795,Chanel,950,92
+Prada,Women's Hat,149.25,995,Chanel,770,8
+Prada,Women's Sunglasses,71.25,475,Chanel,485,31
+Prada,Women's Wallet,112.5,750,Chanel,310,49
+Prada,Men's Shirt,283.5,1890,Chanel,415,57
+Versace,Handbag,284.25,1895,Dior,1850,43
+Versace,Women's Shoes,153.75,1025,Dior,1150,43
+Versace,Men's Shoes,148.5,990,Dior,930,49
+Versace,Men's Belts,78.75,525,Dior,650,60
+Versace,Men's Wallets,74.25,495,Dior,570,61
+Versace,Women's Belt,59.25,395,Dior,660,78
+Versace,Women's Hat,86.25,575,Dior,990,72
+Versace,Women's Sunglasses,72.75,485,Dior,430,30
+Versace,Women's Wallet,112.5,750,Dior,680,78
+Versace,Men's Shirt,254.25,1695,Dior,1650,52
