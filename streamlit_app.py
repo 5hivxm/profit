@@ -14,16 +14,27 @@ st.subheader(
     "Sales Dataset"
 )
 
-
-
 # Universal
-data = pd.read_csv('price_optimization_dataset.csv')
+data = pd.read_csv('luxury_real_data.csv')
+data['Profit'] = (data['Price'] - data['Cost'])*data['Demand']
+data['PriceDiff'] = data['Price'] - data['CompetitorPrice']
+data['Markup'] = (data['Price'] - data['Cost']) / data['Cost']
+
+# Creating mapping for categorical values
+brand_map = {brand: index for index, brand in enumerate(data['Brand'].unique())}
+data['Brand'] = data['Brand'].map(brand_map)
+product_map = {products: index for index, products in enumerate(data['Product'].unique())}
+data['Product'] = data['Product'].map(product_map)
+comp_map = {comps: index for index, comps in enumerate(data['Competitor'].unique())}
+brand_comp = {'Burberry': 'Hermes', 'Gucci':'Balenciaga', 'Prada':'Chanel', 'Versace':'Dior'}
+data['Competitor'] = data['Competitor'].map(comp_map)
+st.dataframe(data)
+
 y = data['Demand']
-X = data.drop(['ProductID', 'Product', 'Demand'], axis=1)
+X = data.drop(['Demand'], axis=1)
 best_models = []
 X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
 X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
-st.dataframe(data)
 
 
 # Training model on training set
@@ -47,7 +58,6 @@ best_models.append(['rf_final', rf_final.score(X_train_val, y_train_val),
 preds = rf_final.predict(X)
 pre_profit = sum(data['Profit'])
 pre_demand = sum(y)
-
 
 # RandomSearchCV
 n_estimators = [int(x) for x in np.linspace(start = 200, stop = 1200, num = 10)]
@@ -91,11 +101,11 @@ best_models.append(['rf_gridsearch', grid_search.score(X_train_val, y_train_val)
                     grid_search.score(X_test, y_test)])
 
 best_models = pd.DataFrame(best_models, columns=['Model', 'Train Score', 'MSE', 'Test/Validation Score'])
+
 st.subheader(
     "Random Forest Model Comparison"
 )
 st.table(best_models)
-
 
 # Predicting Price
 temp = data.copy()
@@ -107,60 +117,15 @@ model = ElasticNet(alpha=0.1,l1_ratio=0.5)
 model.fit(X_1, y_1)
 prices = model.predict(X_prices)
 
-
-# Price optimization function for one instance
-def find_results(graph_data, item_data, price_range, model):
-  best_price = None
-  max_profit = -np.inf
-  max_og = item_data['Price']
-  for price in price_range:
-      item_data['Price'] = price
-      cost = item_data['ProductionCost']
-      item_data['PriceDiff'] = item_data['Price'] - item_data['CompetitorPrice']
-      item_data['Markup'] = (price - cost) / cost
-      demand = model.predict(pd.DataFrame([item_data]))[0]
-      profit = (price - cost) * demand
-      graph_data.append([price, demand, profit])
-  
-      if profit > max_profit:
-          max_profit = profit
-          best_price = price
-  
-  return demand, best_price, max_og, max_profit
-
-# Test the optimization for dataset
-results = []
-graph_data = []
-i=0
-sample_item = X.iloc[i].copy()
-sample_price = prices[i]
-price_range = np.linspace(sample_item['Price'], sample_price, 100)
-opt_demand, opt_price, max_og, max_profit = find_results(graph_data, sample_item, price_range, rf_final)
-results.append([opt_demand, opt_price, max_og, max_profit])
-
-results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
-graph_data = pd.DataFrame(graph_data, columns=['Price', 'Demand', 'Profit'])
-
-# Plotting Example Data
-fig, ax = plt.subplots()
-sns.lineplot(data=graph_data, x="Price", y="Profit", ax=ax)
-sns.scatterplot(x='Optimal Price', y='Max Profit (Optimal Price)', data=results, s=50, color='red', ax=ax)
-ax.set_title('Optimal Price for Profit (Item 0)')
-ax.set_xlabel('Price')
-ax.set_ylabel('Profit')
-ax.legend()
-st.pyplot(fig)
-
-
 # Optimizing Profit
 # Price optimization function
-def find_results(item_data, price_range, model):
+def optimize_demand(item_data, price_range, model):
   best_price = None
   max_profit = -np.inf
 
   for price in price_range:
       item_data['Price'] = price
-      cost = item_data['ProductionCost']
+      cost = item_data['Cost']
       item_data['PriceDiff'] = item_data['Price'] - item_data['CompetitorPrice']
       item_data['Markup'] = (price - cost) / cost
       demand = model.predict(pd.DataFrame([item_data]))[0]
@@ -179,13 +144,22 @@ for i in range(len(X)):
   sample_item = X.iloc[i].copy()
   sample_price = prices[i]                # Using predicted price as max/min price in price range
   price_range = np.linspace(sample_item['Price'], sample_price, 100)
-  opt_demand, opt_price, max_profit = find_results(sample_item, price_range, rf_final)
-  max_og = (X.iloc[i]['Price']-X.iloc[i]['ProductionCost']) * opt_demand
+  opt_demand, opt_price, max_profit = optimize_demand(sample_item, price_range, rf_final)
+  max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
   results.append([opt_demand, opt_price, max_og, max_profit])
 
 results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
+reverse_brandmap = {number: brand for brand, number in brand_map.items()}
+data['Brand'] = data['Brand'].map(reverse_brandmap)
+reverse_compmap = {number: comps for comps, number in comp_map.items()}
+data['Competitor'] = data['Competitor'].map(reverse_compmap)
+reverse_prodsmap = {number: prods for prods, number in product_map.items()}
+data['Product'] = data['Product'].map(reverse_prodsmap)
+results['Brand'] = data['Brand']
 results['Product'] = data['Product']
-results = results[['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
+results['Competitor'] = data['Competitor']
+
+results = results[['Brand', 'Product', 'Competitor', 'Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 
 st.subheader(
     "Dataset of Optimal Demand, Prices for Maximum Profit"
@@ -194,10 +168,10 @@ st.dataframe(results)
 
 # Displaying Comparison Table
 full = pd.merge(results, data[['Demand', 'Price', 'Profit']], left_index=True, right_index=True)
-columns = ['Product', 'Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)',
+columns = ['Brand', 'Product', 'Competitor', 'Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)',
            'Max Profit (Optimal Price)', 'Original Demand', 'Original Price', 'Original Profit']
 full.columns = columns
-full = full[['Product', 'Original Demand', 'Optimal Demand', 'Original Price',
+full = full[['Brand', 'Product', 'Competitor', 'Original Demand', 'Optimal Demand', 'Original Price',
              'Optimal Price', 'Original Profit', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 full[['Original Demand', 'Optimal Demand']] = full[['Original Demand', 'Optimal Demand']].round()
 full[['Original Price', 'Optimal Price', 'Original Profit', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\

@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, LabelEncoder
 from scipy.optimize import minimize_scalar
-import math
 
 # Show app title and description
 st.set_page_config(page_title="Optimal Price", page_icon="")
@@ -33,6 +32,7 @@ categorical_features = ['Brand', 'Product', 'Competitor']
 numeric_features = ['Price', 'Cost', 'Competitor Price']
 target_feature = 'Demand'
 
+mapping = {index: value for index, value in df['Brand'].index}
 # Instead of LabelEncoder, try using mapping so at the end, you can reverse it
 le = LabelEncoder()
 df[categorical_features] = df[categorical_features].apply(
@@ -75,6 +75,17 @@ def calculate_profit(item_data, price_range, model):
 
     return demand, best_price, max_profit
 
+def optimize_price(original, predicted, model, df, X):
+    temp = df.copy()
+    X_prices = pd.DataFrame(model.predict(X))
+    y_prices = temp['Price']
+    X_1, X_2, y_1, y_2 = train_test_split(X_prices, y_prices, test_size=0.2, random_state=42)
+
+    model = ElasticNet(alpha=0.1,l1_ratio=0.5)
+    model.fit(X_1, y_1)
+    prices = model.predict(X)
+    return prices
+
 results = []
 
 for i in range(len(X)):
@@ -96,3 +107,55 @@ st.subheader(
     "Dataset of Optimal Demand, Prices for Maximum Profit"
 )
 st.dataframe(results)
+
+if submitted:
+    # Encode user input
+    data = {'Brand': brand_name, 'Product': title, 'Price': price,
+            'Cost': cost, 'Competitor Price': competitor_price}
+    data = pd.DataFrame(data)
+    # Insert mapping for competitor to match the brand
+    data['Competitor'] = 1
+
+    categorical_features = ['Brand', 'Product', 'Competitor']
+    numeric_features = ['Price', 'Cost', 'Competitor Price']
+    target_feature = 'Demand'
+
+    data[categorical_features] = data[categorical_features].apply(
+        lambda col: le.fit_transform(col))
+
+    # add data row into X dataframe
+    tempY = model.predict(data)
+   
+    # Predict demand for user input
+    user_predicted_demand = model.predict(data)[0]
+ 
+    # Optimize price for user input
+    optimal_price, max_profit = optimize_price(cost, competitor_price, user_predicted_demand)
+   
+    # Display results
+    st.write(f'Optimal Price: {optimal_price:.2f}')
+    st.write(f'Maximum Profit: {max_profit:.2f}')
+
+
+#results = []
+
+#for idx, row in X_test.iterrows():
+#    production_cost = row['ProductionCost']
+#    competitor_price = row['CompetitorPrice']
+#    predicted_demand = y_pred[idx]
+#   
+#    optimal_price, max_profit = optimize_price(production_cost, competitor_price, predicted_demand)
+#   
+#    results.append({
+#        'BrandName': row['BrandName'],
+#        'ItemNumber': row['ItemNumber'],
+#        'ProductionCost': production_cost,
+#        'CompetitorPrice': competitor_price,
+#        'PredictedDemand': predicted_demand,
+#        'OptimizedPrice': optimal_price
+#    })
+ 
+# Format results
+#results_df = pd.DataFrame(results)
+#st.subheader("Original Dataset Predictions") 
+#st.table(results_df)
