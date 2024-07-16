@@ -127,10 +127,10 @@ best_models.append(['rf_gridsearch', grid_search.score(X_train_val, y_train_val)
                     grid_search.score(X_test, y_test)])
 
 best_models = pd.DataFrame(best_models, columns=['Model', 'Train Score', 'MSE', 'Test/Validation Score'])
-#st.subheader(
-#    "Random Forest Model Comparison"
-#)
-#st.table(best_models)
+st.subheader(
+    "Random Forest Model Comparison"
+)
+st.table(best_models)
 
 
 # Predicting Price
