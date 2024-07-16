@@ -29,6 +29,9 @@ with st.form("input_form"):
 np.random.seed(42)
 
 df = pd.read_csv('luxury_real_data.csv')
+st.subheader('Original Dataset')
+st.dataframe(df)
+
 # Calculate stats based on input data
 def calculate_stats(data):
     data['PriceDiff'] = data['Price'] - data['CompetitorPrice']
@@ -51,7 +54,6 @@ def mappings(data):
     return data
 
 df = mappings(df)
-st.dataframe(df)
 
 # Define features and target
 y = df['Demand']
@@ -170,30 +172,37 @@ if submitted:
     data = pd.DataFrame(data, index=[0])
     data = calculate_stats(data)
     data = mappings(data)
+    df = calculate_stats(df)
+    df = mappings(df)
     data = data[['Brand', 'Product', 'Cost', 'Price', 'Competitor',
-                 'CompetitorPrice', 'PriceDiff', 'Markup']]
+                'CompetitorPrice', 'PriceDiff', 'Markup']]
     data['Demand'] = rf_final.predict(data)
     # add data row into X dataframe
     data = data[['Brand', 'Product', 'Cost', 'Price', 'Competitor',
-                 'CompetitorPrice', 'Demand', 'PriceDiff', 'Markup']]
+                'CompetitorPrice', 'Demand', 'PriceDiff', 'Markup']]
     df = pd.concat([df, data], ignore_index=True)
 
     X = df.drop('Demand', axis=1)
     temp_price = optimize_price(df, rf_final)
     results = []
-
+    opt_price, max_profit = 0, 0
     for i in range(len(X)):
         sample_item = X.iloc[i].copy()
         sample_price = temp_price[i]                # Using predicted price as max/min price in price range
         price_range = np.linspace(sample_item['Price'], sample_price, 100)
         opt_demand, opt_price, max_profit = optimize_demand(sample_item, price_range, rf_final)
-        results.append([opt_demand, opt_price, max_profit])
-        st.write(f'Optimal Price: {opt_price:.2f}')
-        st.write(f'Maximum Profit: {max_profit:.2f}')
+        results.append([opt_price, opt_demand, max_profit])
+    st.write(f'Optimal Price: {opt_price:.2f}')
+    st.write(f'Maximum Profit: {max_profit:.2f}')
 
     df = reverse_stats(df) # after doing predictions
 
-    results_df = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit'])
+    results_df = pd.DataFrame(results, columns=['Optimal Price', 'Optimal Demand', 'Max Profit (Optimal Price)'])
+    full = pd.merge(df[['Brand', 'Product', 'Price', 'Demand']], results_df, left_index=True, right_index=True)
+    columns = ['Brand', 'Product', 'Original Price', 'Original Demand', 'Optimal Price', 'Optimal Demand',
+            'Max Profit (Optimal Price)']
+    full.columns = columns
+
     st.subheader("Original Dataset Predictions") 
-    st.table(results_df)
+    st.table(full)
 
