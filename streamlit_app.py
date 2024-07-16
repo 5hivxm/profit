@@ -26,8 +26,8 @@ data['Brand'] = data['Brand'].map(brand_map)
 product_map = {products: index for index, products in enumerate(data['Product'].unique())}
 data['Product'] = data['Product'].map(product_map)
 comp_map = {comps: index for index, comps in enumerate(data['Competitor'].unique())}
-brand_comp = {'Burberry': 'Hermes', 'Gucci':'Balenciaga', 'Prada':'Chanel', 'Versace':'Dior'}
 data['Competitor'] = data['Competitor'].map(comp_map)
+brand_comp = {'Burberry': 'Hermes', 'Gucci':'Balenciaga', 'Prada':'Chanel', 'Versace':'Dior'}
 st.dataframe(data)
 
 y = data['Demand']
@@ -86,10 +86,10 @@ rf_ransearch.fit(X_train_val,y_train_val)
 param_grid = {
     'bootstrap': [True],
     'max_depth': [None, 10, 20],
-    'max_features': [1],
+    'max_features': ['sqrt'],
     'min_samples_leaf': [1],
     'min_samples_split': [5, 7],
-    'n_estimators': [600, 700, 800]
+    'n_estimators': [700, 800, 900]
 }
 # Instantiate the grid search model
 grid_search = GridSearchCV(estimator = rf_final, param_grid = param_grid,

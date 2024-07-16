@@ -1,0 +1,3 @@
+user input data: brand_name, product, cost, price, competitor_price
+actual data:     Brand, Product, Cost, Price, Competitor, 
+                 CompetitorPrice, Demand, Profit, PriceDiff, Markup
