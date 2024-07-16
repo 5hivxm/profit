@@ -229,8 +229,6 @@ if submitted:
         opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf_final, og_demand)
         max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
         results.append([opt_price, opt_demand, max_og, max_profit])
-    st.write(f'Optimal Price: {opt_price:.2f}')
-    st.write(f'Maximum Profit: {max_profit:.2f}')
 
     df = reverse_stats(df) # after doing predictions
 
@@ -243,7 +241,9 @@ if submitted:
     full.columns = columns
 
     st.subheader("Original Dataset Predictions") 
-    st.table(full)
+    st.dataframe(full)
+    st.write(f'Optimal Price: {opt_price:.2f}')
+    st.write(f'Maximum Profit: {max_profit:.2f}')
 
     original_price = sum(full['Original Price'])
     optimal_price = sum(full['Optimal Price'])
