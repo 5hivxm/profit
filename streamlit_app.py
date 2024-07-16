@@ -57,17 +57,17 @@ df = mappings(df)
 # Define features and target
 y = df['Demand']
 X = df.drop(['Demand'], axis=1)
-X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
-X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
+X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.1)
+X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.5)
 best_models = []
 
 # Predicting Demands
 # Training model on combined training+validation set
 rf_train = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_train.fit(X_train, y_train)
-best_models.append(['rf_train', rf_train.score(X_train, y_train),
-                    mean_squared_error(y_val,rf_train.predict(X_val)),
-                    rf_train.score(X_val, y_val)])
+rf_train.fit(X_train_or, y_train_or)
+best_models.append(['rf_train', rf_train.score(X_train_or, y_train_or),
+                    mean_squared_error(y_test,rf_train.predict(X_test)),
+                    rf_train.score(X_test, y_test)])
 
 # Training on combined training+validation set
 X_train_val = pd.concat([X_train,X_val])
