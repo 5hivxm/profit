@@ -106,7 +106,6 @@ rf_ransearch = RandomizedSearchCV(estimator=rf_final, param_distributions=random
                               cv = 3, verbose=2, random_state=42, n_jobs=-1)
 
 rf_ransearch.fit(X_train_val,y_train_val)
-st.write(rf_ransearch.best_params_)
 
 # GridSearchCV
 # Using best parameters from RandomSearchCV
@@ -218,6 +217,7 @@ if submitted:
     df = pd.concat([df, data], ignore_index=True)
 
     X = df.drop(['Demand'], axis=1)
+    y = df['Demand']
     temp_price = optimize_price(df, rf_final)
     results = []
     opt_price, max_profit = 0, 0
