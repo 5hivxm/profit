@@ -75,7 +75,6 @@ def changes(full):
 @st.cache_data
 def main():
     # Show app title and description
-    st.title("Optimal Price for Luxury Fashion Brands")
     
     # Generate random data
     np.random.seed(42)
@@ -233,6 +232,7 @@ def buttons():
 
 
 if __name__ == '__main__':
+    st.title("Optimal Price for Luxury Fashion Brands")
     main()
     buttons()
 
