@@ -12,17 +12,6 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Optimal Price", page_icon="")
 st.title("Optimal Price for Luxury Fashion Brands")
  
-# Define form for user inputs
-with st.form("input_form"):
-    brand_name = st.selectbox("Select a Brand", ['Gucci', 'Burberry', 'Prada', 'Versace'])
-    title = st.selectbox("Select a Product", ['Handbag', "Women's Shoes", "Men's Shoes", "Men's Belts",
-                                              "Men's Wallets", "Women's Belt", "Women's Hat", 
-                                              "Women's Sunglasses", "Women's Wallet", "Men's Shirt"])
-    cost = st.number_input("Insert production cost", value=None, placeholder="Type a number...")
-    price = st.number_input("Insert price", value=None, placeholder="Type a number...")
-    competitor_price = st.number_input("Insert competitor price", value=None, placeholder="Type a number...")
-    demand = st.number_input("Insert quantity", value=None, placeholder="Type a number...")
-    submitted = st.form_submit_button("Submit")
 # Generate random data
 np.random.seed(42)
 
@@ -129,21 +118,21 @@ for i in range(len(X)):
     sample_item = X.iloc[i].copy()
     og_demand = y.iloc[i]
     sample_price = prices[i]                # Using predicted price as max/min price in price range
-    price_range = np.linspace(sample_item['Price'], sample_price, 100)
+    price_range = np.linspace(sample_item['Price'], sample_price, 20)
     opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
     max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
     results.append([opt_demand, opt_price, max_og, max_profit])
 
 results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
 
-def reverse_stats(data):
+def reverse_stats(ex):
     reverse_brandmap = {number: brand for brand, number in brand_map.items()}
-    data['Brand'] = data['Brand'].map(reverse_brandmap)
+    ex['Brand'] = ex['Brand'].map(reverse_brandmap)
     reverse_compmap = {number: comps for comps, number in comp_map.items()}
-    data['Competitor'] = data['Competitor'].map(reverse_compmap)
+    ex['Competitor'] = ex['Competitor'].map(reverse_compmap)
     reverse_prodsmap = {number: prods for prods, number in product_map.items()}
-    data['Product'] = data['Product'].map(reverse_prodsmap)
-    return df
+    ex['Product'] = ex['Product'].map(reverse_prodsmap)
+    return ex
 
 df = reverse_stats(df)
 
@@ -153,6 +142,17 @@ results['Competitor'] = df['Competitor']
 results = results[['Brand', 'Product', 'Competitor', 'Optimal Demand', 
                    'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 
+# Define form for user inputs
+with st.form("input_form"):
+    brand_name = st.selectbox("Select a Brand", ['Gucci', 'Burberry', 'Prada', 'Versace'])
+    title = st.selectbox("Select a Product", ['Handbag', "Women's Shoes", "Men's Shoes", "Men's Belts",
+                                              "Men's Wallets", "Women's Belt", "Women's Hat", 
+                                              "Women's Sunglasses", "Women's Wallet", "Men's Shirt"])
+    cost = st.number_input("Insert production cost", value=None, placeholder="Type a number...")
+    price = st.number_input("Insert price", value=None, placeholder="Type a number...")
+    competitor_price = st.number_input("Insert competitor price", value=None, placeholder="Type a number...")
+    demand = st.number_input("Insert quantity", value=None, placeholder="Type a number...")
+    submitted = st.form_submit_button("Submit")
 
 if submitted:
     # Encode user input
@@ -163,21 +163,20 @@ if submitted:
     data = mappings(data)
     data = data[['Brand', 'Product', 'Cost', 'Price', 'Competitor',
                 'CompetitorPrice', 'Demand', 'Profit', 'PriceDiff', 'Markup']]
-
     X = data.drop(['Demand'], axis=1)
     y = data['Demand'] 
 
     temp_demand = rf.predict(X)
-    temp_price = optimize_price(temp_model, temp_demand)
+    temp_price = optimize_price(temp_model, [temp_demand])
     sample_item = X.iloc[0].copy()
     og_demand = y.iloc[0]
     sample_price = temp_price[0]
     price_range = np.linspace(sample_item['Price'], sample_price, 100)
     opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
-
-    max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
-    st.write(results)
+    max_og = (X.iloc[0]['Price']-X.iloc[0]['Cost']) * opt_demand
+    
     data = reverse_stats(data) # after doing predictions
+    
     st.table(data)
     df = pd.concat([df, data], ignore_index=True)
 
