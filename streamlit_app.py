@@ -85,6 +85,9 @@ random_grid = {'n_estimators': n_estimators,            # number of trees
 rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
                               n_iter = 10, scoring='neg_mean_squared_error',
                               cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
+rf = RandomForestRegressor(**rf_ransearch.best_params_).fit(X_train, y_train)
+st.write(mean_squared_error(rf.predict(X_val), y_val))
+st.write(mean_squared_error(rf.predict(X_test), y_test))
 
 # Predicting Price
 def optimize_price(data, model):
@@ -97,7 +100,7 @@ def optimize_price(data, model):
     prices = temp_model.predict(X_prices)
     return prices
 
-prices = optimize_price(df, rf_ransearch)
+prices = optimize_price(df, rf)
 
 # Optimizing Profit
 # Price optimization function
@@ -128,7 +131,7 @@ for i in range(len(X)):
     og_demand = y.iloc[i]
     sample_price = prices[i]                # Using predicted price as max/min price in price range
     price_range = np.linspace(sample_item['Price'], sample_price, 100)
-    opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf_ransearch, og_demand)
+    opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
     max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
     results.append([opt_demand, opt_price, max_og, max_profit])
 
@@ -163,13 +166,13 @@ if submitted:
 
     X = data.drop(['Demand'], axis=1)
     y = data['Demand']
-    
-    temp_demand = rf_ransearch.predict(X)
-    temp_price = optimize_price(data, rf_ransearch)
+
+    temp_demand = rf.predict(X)
+    temp_price = optimize_price(data, rf)
 
     results = []
     price_range = np.linspace(X['Price'], temp_price, 100)
-    opt_demand, opt_price, max_profit = calculate_profit(X, price_range, rf_ransearch, y)
+    opt_demand, opt_price, max_profit = calculate_profit(X, price_range, rf, y)
     max_og = (X['Price']-X['Cost']) * opt_demand
     results.append([opt_price, opt_demand, max_og, max_profit])
 
