@@ -62,20 +62,14 @@ X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_s
 # Random Forest Regression
 # Training model on training set
 rf = RandomForestRegressor(random_state=42).fit(X_train, y_train)
-rf_val_error = mean_squared_error(rf.predict(X_val), y_val)
-rf_test_error = mean_squared_error(rf.predict(X_test), y_test)
-st.write(rf.score(X_train, y_train))
-st.write(mean_squared_error(rf.predict(X_train), y_train))
-st.write(rf.score(X_val, y_val))
-st.write(rf_val_error)
 
 pred_demand = rf.predict(X)
 pre_profit = sum(df['Profit'])
 pre_demand = sum(y)
 
-n_estimators = [int(x) for x in np.linspace(start = 0, stop = 2000, num = 100)]
+n_estimators = [int(x) for x in np.linspace(start = 0, stop = 1000, num = 100)]
 max_features = [1.0, 'sqrt']
-max_depth = [int(x) for x in np.linspace(1, 51, num = 5)]
+max_depth = [int(x) for x in np.linspace(1, 31, num = 6)]
 max_depth.append(None)
 min_samples_split = [2, 5, 10]
 min_samples_leaf = [1, 2, 4]
@@ -92,13 +86,6 @@ rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
                               n_iter = 10, scoring='neg_mean_squared_error',
                               cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
 
-print(rf_ransearch.best_params_)
-rf_val_error = mean_squared_error(rf_ransearch.predict(X_val), y_val)
-rf_test_error = mean_squared_error(rf_ransearch.predict(X_test), y_test)
-st.write(r2_score(rf_ransearch.predict(X_test), y_test))
-st.write(rf_test_error)
-
-
 # Predicting Price
 def optimize_price(data, model):
     temp = data.copy()
@@ -110,7 +97,7 @@ def optimize_price(data, model):
     prices = temp_model.predict(X_prices)
     return prices
 
-prices = optimize_price(df, rf_final)
+prices = optimize_price(df, rf_ransearch)
 
 # Optimizing Profit
 # Price optimization function
@@ -141,7 +128,7 @@ for i in range(len(X)):
     og_demand = y.iloc[i]
     sample_price = prices[i]                # Using predicted price as max/min price in price range
     price_range = np.linspace(sample_item['Price'], sample_price, 100)
-    opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf_final, og_demand)
+    opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf_ransearch, og_demand)
     max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
     results.append([opt_demand, opt_price, max_og, max_profit])
 
@@ -162,10 +149,6 @@ results['Product'] = df['Product']
 results['Competitor'] = df['Competitor']
 results = results[['Brand', 'Product', 'Competitor', 'Optimal Demand', 
                    'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
-st.subheader(
-    "Dataset of Optimal Demand, Prices for Maximum Profit"
-)
-st.dataframe(results)
 
 
 if submitted:
@@ -175,28 +158,23 @@ if submitted:
     data = pd.DataFrame(data, index=[0])
     data = calculate_stats(data)
     data = mappings(data)
-    df = calculate_stats(df)
-    df = mappings(df)
     data = data[['Brand', 'Product', 'Cost', 'Price', 'Competitor',
                 'CompetitorPrice', 'Demand', 'Profit', 'PriceDiff', 'Markup']]
-    # add data row into X dataframe
-    df = pd.concat([df, data], ignore_index=True)
 
-    X = df.drop(['Demand'], axis=1)
-    y = df['Demand']
-    temp_price = optimize_price(df, rf_final)
+    X = data.drop(['Demand'], axis=1)
+    y = data['Demand']
+    
+    temp_demand = rf_ransearch.predict(X)
+    temp_price = optimize_price(data, rf_ransearch)
+
     results = []
-    opt_price, max_profit = 0, 0
-    for i in range(len(X)):
-        sample_item = X.iloc[i].copy()
-        og_demand = y.iloc[i]
-        sample_price = temp_price[i]                # Using predicted price as max/min price in price range
-        price_range = np.linspace(sample_item['Price'], sample_price, 100)
-        opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf_final, og_demand)
-        max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
-        results.append([opt_price, opt_demand, max_og, max_profit])
+    price_range = np.linspace(X['Price'], temp_price, 100)
+    opt_demand, opt_price, max_profit = calculate_profit(X, price_range, rf_ransearch, y)
+    max_og = (X['Price']-X['Cost']) * opt_demand
+    results.append([opt_price, opt_demand, max_og, max_profit])
 
-    df = reverse_stats(df) # after doing predictions
+    data = reverse_stats(data) # after doing predictions
+    df = pd.concat([df, data], ignore_index=True)
 
     results_df = pd.DataFrame(results, columns=['Optimal Price', 'Optimal Demand',
                                                 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
