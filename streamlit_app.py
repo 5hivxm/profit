@@ -86,21 +86,20 @@ rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
                               n_iter = 10, scoring='neg_mean_squared_error',
                               cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
 rf = RandomForestRegressor(**rf_ransearch.best_params_).fit(X_train, y_train)
-st.write(mean_squared_error(rf.predict(X_val), y_val))
-st.write(mean_squared_error(rf.predict(X_test), y_test))
 
 # Predicting Price
-def optimize_price(data, model):
-    temp = data.copy()
-    X_prices = pd.DataFrame(model.predict(data.drop(['Demand'], axis=1)))
-    y_prices = temp['Price']
-    X_1, X_2, y_1, y_2 = train_test_split(X_prices, y_prices, test_size=0.2, random_state=42)
-    temp_model = ElasticNet(alpha=0.1,l1_ratio=0.5)
-    temp_model.fit(X_1, y_1)
-    prices = temp_model.predict(X_prices)
+temp = df.copy()
+X_prices = pd.DataFrame(rf.predict(X))  # demands
+y_prices = temp['Price']
+X_1, X_2, y_1, y_2 = train_test_split(X_prices, y_prices, test_size=0.2, random_state=42)
+temp_model = ElasticNet(alpha=0.1,l1_ratio=0.5)
+temp_model.fit(X_1, y_1)
+
+def optimize_price(model, X_prices):
+    prices = model.predict(X_prices)
     return prices
 
-prices = optimize_price(df, rf)
+prices = optimize_price(temp_model, X_prices)
 
 # Optimizing Profit
 # Price optimization function
@@ -136,6 +135,7 @@ for i in range(len(X)):
     results.append([opt_demand, opt_price, max_og, max_profit])
 
 results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
+
 def reverse_stats(data):
     reverse_brandmap = {number: brand for brand, number in brand_map.items()}
     data['Brand'] = data['Brand'].map(reverse_brandmap)
@@ -168,7 +168,8 @@ if submitted:
     y = data['Demand']
 
     temp_demand = rf.predict(X)
-    temp_price = optimize_price(data, rf)
+    temp_price = optimize_price(temp_model, X_prices)
+
 
     results = []
     price_range = np.linspace(X['Price'], temp_price, 100)
@@ -178,55 +179,4 @@ if submitted:
 
     data = reverse_stats(data) # after doing predictions
     df = pd.concat([df, data], ignore_index=True)
-
-    results_df = pd.DataFrame(results, columns=['Optimal Price', 'Optimal Demand',
-                                                'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
-
-    full = pd.merge(df[['Brand', 'Product', 'Price', 'Demand', 'Profit']], results_df, left_index=True, right_index=True)
-    columns = ['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 
-               'Optimal Price', 'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']
-    full.columns = columns
-
-    st.subheader("Original Dataset Predictions") 
-    st.dataframe(full)
-    st.write(f'Optimal Price: {opt_price:.2f}')
-    st.write(f'Maximum Profit: {max_profit:.2f}')
-
-    original_price = sum(full['Original Price'])
-    optimal_price = sum(full['Optimal Price'])
-    original_profit = sum(full['Original Profit'])
-    optimal_profit = sum(full['Max Profit (Optimal Price)'])
-    original_demand = sum(full['Original Demand'])
-    optimal_demand = sum(full['Optimal Demand'])
-    original_revenue = sum(full['Original Price']*full['Original Demand'])
-    optimal_revenue = sum(full['Optimal Price']*full['Optimal Demand'])
-
-    demands = ['Demand', original_demand, optimal_demand, (optimal_demand-original_demand)/original_demand*100,
-            (optimal_demand-original_demand)/(optimal_price - original_price)]
-    revs = ['Revenue', original_revenue, optimal_revenue, (optimal_revenue - original_revenue)/original_revenue*100,
-            (optimal_revenue-original_revenue)/(optimal_price - original_price)]
-    profits = ['Profit', original_profit, optimal_profit, (optimal_profit-original_profit)/original_profit*100,
-            (optimal_profit-original_profit)/(optimal_price - original_price)]
-    columns = ['Feature', 'Original Value', 'Optimized Value', 'Percent Increase', 'Elasticity on Price Change']
-    res = pd.DataFrame([demands, revs, profits], columns=columns)
-
-    st.subheader(
-        "Full Dataset Comparing Demands, Prices, Profits"
-    )
-    st.dataframe(full)
-
-    # Plotting original vs optimal Profit
-    fig, ax = plt.subplots()
-    sns.scatterplot(x='Original Price', y='Original Profit', data=full, label='Original Prices', s=50, color='blue', ax=ax)
-    sns.scatterplot(x='Optimal Price', y='Max Profit (Optimal Price)', data=full, label='Optimal Prices', s=50, color='red', ax=ax)
-    ax.set_title('Price vs Profit')
-    ax.set_xlabel('Price')
-    ax.set_ylabel('Profit')
-    ax.legend()
-    st.pyplot(fig)
-
-    st.subheader(
-        "Increases in Demand, Revenue, Profit, Elasticities"
-    )
-    st.table(res)
 
