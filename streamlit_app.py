@@ -1,6 +1,6 @@
 import streamlit as st
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
 from sklearn.linear_model import ElasticNet
 import pandas as pd
@@ -57,35 +57,26 @@ df = mappings(df)
 # Define features and target
 y = df['Demand']
 X = df.drop(['Demand'], axis=1)
-X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.1)
-X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.5)
-best_models = []
+X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
+X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
 
-# Predicting Demands
-# Training model on combined training+validation set
-rf_train = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_train.fit(X_train_or, y_train_or)
-best_models.append(['rf_train', rf_train.score(X_train_or, y_train_or),
-                    mean_squared_error(y_test,rf_train.predict(X_test)),
-                    rf_train.score(X_test, y_test)])
+# Random Forest Regression
+# Training model on training set
+rf = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train)
+rf_val_error = mean_squared_error(rf.predict(X_val), y_val)
+rf_test_error = mean_squared_error(rf.predict(X_test), y_test)
+st.write(rf.score(X_train, y_train))
+st.write(mean_squared_error(rf.predict(X_train), y_train))
+st.write(rf.score(X_val, y_val))
+st.write(rf_val_error)
 
-# Training on combined training+validation set
-X_train_val = pd.concat([X_train,X_val])
-y_train_val = pd.concat([y_train,y_val])
-rf_final = RandomForestRegressor(random_state=42)
-rf_final.fit(X_train_val,y_train_val)
-best_models.append(['rf_final', rf_final.score(X_train_val, y_train_val),
-                    mean_squared_error(y_test,rf_final.predict(X_test)),
-                    rf_final.score(X_test, y_test)])
-
-pred_demand = rf_final.predict(X)
+pred_demand = rf.predict(X)
 pre_profit = sum(df['Profit'])
 pre_demand = sum(y)
 
-# RandomSearchCV
-n_estimators = [int(x) for x in np.linspace(start = 200, stop = 1200, num = 10)]
+n_estimators = [int(x) for x in np.linspace(start = 0, stop = 2000, num = 100)]
 max_features = [1.0, 'sqrt']
-max_depth = [int(x) for x in np.linspace(5, 30, num = 6)]
+max_depth = [int(x) for x in np.linspace(1, 51, num = 5)]
 max_depth.append(None)
 min_samples_split = [2, 5, 10]
 min_samples_leaf = [1, 2, 4]
@@ -98,36 +89,15 @@ random_grid = {'n_estimators': n_estimators,            # number of trees
                'min_samples_leaf': min_samples_leaf,    # min data allowed in leaf
                'bootstrap': bootstrap}                  # replacement or not
 
-rf_ransearch = RandomizedSearchCV(estimator=rf_final, param_distributions=random_grid,
-                              n_iter = 10, scoring='neg_mean_absolute_error',
-                              cv = 3, verbose=2, random_state=42, n_jobs=-1)
+rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
+                              n_iter = 10, scoring='neg_mean_squared_error',
+                              cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
 
-rf_ransearch.fit(X_train_val,y_train_val)
-
-# GridSearchCV
-# Using best parameters from RandomSearchCV
-param_grid = {
-    'bootstrap': [True],
-    'max_depth': [None, 10, 20],
-    'max_features': ['sqrt'],
-    'min_samples_leaf': [1],
-    'min_samples_split': [5, 7],
-    'n_estimators': [700, 800, 900]
-}
-# Instantiate the grid search model
-grid_search = GridSearchCV(estimator = rf_final, param_grid = param_grid,
-                          cv = 3, n_jobs = -1, verbose = 2)
-
-grid_search.fit(X_train_val,y_train_val)
-best_models.append(['rf_gridsearch', grid_search.score(X_train_val, y_train_val),
-                    mean_squared_error(y_test,grid_search.predict(X_test)),
-                    grid_search.score(X_test, y_test)])
-
-best_models = pd.DataFrame(best_models, columns=['Model', 'Train Score', 'MSE', 'Test/Validation Score'])
-st.subheader(
-    "Random Forest Model Comparison"
-)
-st.table(best_models)
+print(rf_ransearch.best_params_)
+rf_val_error = mean_squared_error(rf_ransearch.predict(X_val), y_val)
+rf_test_error = mean_squared_error(rf_ransearch.predict(X_test), y_test)
+st.write(r2_score(rf_ransearch.predict(X_test), y_test))
+st.write(rf_test_error)
 
 
 # Predicting Price
