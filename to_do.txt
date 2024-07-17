@@ -1,3 +1,40 @@
-user input data: brand_name, product, cost, price, competitor_price
-actual data:     Brand, Product, Cost, Price, Competitor, 
-                 CompetitorPrice, Demand, Profit, PriceDiff, Markup
+X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
+X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
+
+# Random Forest Regression
+# Training model on training set
+rf = RandomForestRegressor(random_state=42).fit(X_train, y_train)
+rf_val_error = mean_squared_error(rf.predict(X_val), y_val)
+rf_test_error = mean_squared_error(rf.predict(X_test), y_test)
+st.write(rf.score(X_train, y_train))
+st.write(mean_squared_error(rf.predict(X_train), y_train))
+st.write(rf.score(X_val, y_val))
+st.write(rf_val_error)
+st.write(rf.score(X_test, y_test))
+st.write(rf_test_error)
+
+
+n_estimators = [int(x) for x in np.linspace(start = 0, stop = 2000, num = 100)]
+max_features = [1.0, 'sqrt']
+max_depth = [int(x) for x in np.linspace(1, 51, num = 5)]
+max_depth.append(None)
+min_samples_split = [2, 5, 10]
+min_samples_leaf = [1, 2, 4]
+bootstrap = [True, False]
+
+random_grid = {'n_estimators': n_estimators,            # number of trees
+               'max_features': max_features,            # max splitting node features
+               'max_depth': max_depth,                  # max levels in each tree
+               'min_samples_split': min_samples_split,  # min data in a pre-split node
+               'min_samples_leaf': min_samples_leaf,    # min data allowed in leaf
+               'bootstrap': bootstrap}                  # replacement or not
+
+rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
+                              n_iter = 10, scoring='neg_mean_squared_error',
+                              cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
+
+print(rf_ransearch.best_params_)
+rf_val_error = mean_squared_error(rf_ransearch.predict(X_val), y_val)
+rf_test_error = mean_squared_error(rf_ransearch.predict(X_test), y_test)
+st.write(r2_score(rf_ransearch.predict(X_test), y_test))
+st.write(rf_test_error)

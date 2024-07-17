@@ -56,13 +56,19 @@ df = mappings(df)
 
 # Define features and target
 y = df['Demand']
-X = df.drop(['Demand'], axis=1)
+X = df.drop(['Demand', 'Competitor'], axis=1)
 X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
 X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
 
+correlation_matrix = df.corr()
+fig, ax = plt.subplots(figsize=(10,10))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+plt.show()
+st.pyplot(fig)
+
 # Random Forest Regression
 # Training model on training set
-rf = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train)
+rf = RandomForestRegressor(random_state=42).fit(X_train, y_train)
 rf_val_error = mean_squared_error(rf.predict(X_val), y_val)
 rf_test_error = mean_squared_error(rf.predict(X_test), y_test)
 st.write(rf.score(X_train, y_train))

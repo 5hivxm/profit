@@ -51,7 +51,6 @@ def mappings(data):
     data['Product'] = data['Product'].map(product_map)
     data['Competitor'] = data['Competitor'].map(comp_map)
     return data
-
 df = mappings(df)
 
 # Define features and target
@@ -62,7 +61,7 @@ X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_s
 
 # Random Forest Regression
 # Training model on training set
-rf = RandomForestRegressor(n_estimators=100, random_state=42).fit(X_train, y_train)
+rf = RandomForestRegressor(random_state=42).fit(X_train, y_train)
 rf_val_error = mean_squared_error(rf.predict(X_val), y_val)
 rf_test_error = mean_squared_error(rf.predict(X_test), y_test)
 st.write(rf.score(X_train, y_train))
