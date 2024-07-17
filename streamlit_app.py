@@ -64,9 +64,9 @@ def changes(full):
     optimal_demand = sum(full['Optimal Demand'])
     original_revenue = sum(full['Original Price'] * full['Original Demand'])
     optimal_revenue = sum(full['Optimal Price'] * full['Optimal Demand'])
-    demands = ['Demand', original_demand, optimal_demand, round((optimal_demand - original_demand) / original_demand * 100, 0)]
-    revs = ['Revenue', original_revenue, optimal_revenue, round((optimal_revenue - original_revenue) / original_revenue * 100, 2)]
-    profits = ['Profit', original_profit, optimal_profit, round((optimal_profit - original_profit) / original_profit * 100, 2)]
+    demands = ['Demand', round(original_demand), round(optimal_demand), round((optimal_demand - original_demand) / original_demand * 100, 0)]
+    revs = ['Revenue', round(original_revenue,2), round(optimal_revenue,2), round((optimal_revenue - original_revenue) / original_revenue * 100, 2)]
+    profits = ['Profit', round(original_profit,2), round(optimal_profit,2), round((optimal_profit - original_profit) / original_profit * 100, 2)]
     return demands, revs, profits
 
 
@@ -210,24 +210,25 @@ def buttons():
 
         brand_data = results[results['Brand'] == brand_name]
         demands, revs, profits = changes(brand_data)
-
         res = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
+
+        item_data = brand_data[brand_data['Product']==title]
+        demands, revs, profits = changes(item_data)
+        res2 = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
         # Display data for selected brand
         st.header(f"Optimized Demand, Price, Profits for {brand_name}")    
+        brand_data[['Original Demand', 'Optimal Demand']] = brand_data[['Original Demand', 'Optimal Demand']].round()
+        brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\
+            brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
         st.dataframe(brand_data)
         
         # Display percent increases for company
         st.header(f"Increases in Demand, Revenue, Profit for {brand_name} Company")
         st.dataframe(res)
-
-        item_data = brand_data[brand_data['Product']==title]
-        demands, revs, profits = changes(item_data)
-        res = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
-
         # Display percent increases for item
         st.header(f"Increases in Demand, Revenue, Profit for {title}")
-        st.dataframe(res)
+        st.dataframe(res2)
 
 
 
