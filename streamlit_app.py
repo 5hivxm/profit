@@ -218,7 +218,7 @@ def main():
         st.header(f"Increases in Demand, Revenue, Profit for {brand_name} Company")
         st.dataframe(res)
 
-        item_data = results[results['Product']==title]
+        item_data = brand_data[brand_data['Product']==title]
         demands, revs, profits = changes(item_data)
         res = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
