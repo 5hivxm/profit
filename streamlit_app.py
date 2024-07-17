@@ -72,9 +72,9 @@ def changes(full):
 
 
 # Main Streamlit app code
+@st.cache_data
 def main():
     # Show app title and description
-    st.set_page_config(page_title="Optimal Price", page_icon="")
     st.title("Optimal Price for Luxury Fashion Brands")
     
     # Generate random data
@@ -154,8 +154,10 @@ def main():
     results = results[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
                         'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 
+    return rf, df, brand_map, product_map, temp_model, results
 
     # User input fields
+def buttons():
     with st.form("input_form"):
         brand_name = st.selectbox("Select a Brand", ['Gucci', 'Burberry', 'Prada', 'Versace'])
         title = st.selectbox("Select a Product", ['Handbag', "Women's Shoes", "Men's Shoes", "Men's Belts",
@@ -169,6 +171,8 @@ def main():
 
     if submitted:
         # Encode user input
+        rf, df, brand_map, product_map, temp_model, results = main()
+
         data = {'Brand': brand_name, 'Product': title, 'Cost': cost,
                 'Price': price, 'CompetitorPrice': competitor_price, 'Demand': demand}
         data = pd.DataFrame(data, index=[0])
@@ -230,6 +234,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+    buttons()
 
 
 
