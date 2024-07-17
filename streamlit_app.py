@@ -165,18 +165,19 @@ if submitted:
                 'CompetitorPrice', 'Demand', 'Profit', 'PriceDiff', 'Markup']]
 
     X = data.drop(['Demand'], axis=1)
-    y = data['Demand']
+    y = data['Demand'] 
 
     temp_demand = rf.predict(X)
-    temp_price = optimize_price(temp_model, X_prices)
+    temp_price = optimize_price(temp_model, temp_demand)
+    sample_item = X.iloc[0].copy()
+    og_demand = y.iloc[0]
+    sample_price = temp_price[0]
+    price_range = np.linspace(sample_item['Price'], sample_price, 100)
+    opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
 
-
-    results = []
-    price_range = np.linspace(X['Price'], temp_price, 100)
-    opt_demand, opt_price, max_profit = calculate_profit(X, price_range, rf, y)
-    max_og = (X['Price']-X['Cost']) * opt_demand
-    results.append([opt_price, opt_demand, max_og, max_profit])
-
+    max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
+    st.write(results)
     data = reverse_stats(data) # after doing predictions
+    st.table(data)
     df = pd.concat([df, data], ignore_index=True)
 
