@@ -1,4 +1,0 @@
-1. output predicted demand, and optimized price for uesr input
-2. output stats such as % increases for that particular product 
-3. output company stats (this feature is low priority for now)
-4. we can additionally include graphics if we have the time
