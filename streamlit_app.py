@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly as px
 
 # Calculate stats based on input data NEED TO MAKE VARIABLES GLOBAL
 def calculate_stats(data):
@@ -64,12 +65,10 @@ def changes(full):
     optimal_demand = sum(full['Optimal Demand'])
     original_revenue = sum(full['Original Price'] * full['Original Demand'])
     optimal_revenue = sum(full['Optimal Price'] * full['Optimal Demand'])
-    demands = ['Demand', round(original_demand), round(optimal_demand), round((optimal_demand - original_demand) / original_demand * 100, 0)]
+    demands = ['Demand', int(round(original_demand)), int(round(optimal_demand)), round((optimal_demand - original_demand) / original_demand * 100, 2)]
     revs = ['Revenue', round(original_revenue,2), round(optimal_revenue,2), round((optimal_revenue - original_revenue) / original_revenue * 100, 2)]
     profits = ['Profit', round(original_profit,2), round(optimal_profit,2), round((optimal_profit - original_profit) / original_profit * 100, 2)]
     return demands, revs, profits
-
-
 
 # Main Streamlit app code
 @st.cache_data
@@ -155,7 +154,50 @@ def main():
 
     return rf, df, brand_map, product_map, temp_model, results
 
-    # User input fields
+# User input fields
+def plots(brand_data, brand_name, res, title, res2):
+    st.header(f"Optimized Demand, Price, Profits for {brand_name}")    
+    st.table(brand_data)
+    fig, ax = plt.subplots()
+
+    ind = brand_data.index
+    width = 0.25
+    xvals = brand_data['Original Profit']
+    bar1 = plt.bar(ind, xvals, width, color = 'r') 
+    yvals = brand_data['Max Profit (Original Price)']
+    bar2 = plt.bar(ind+width, yvals, width, color='g') 
+    zvals = brand_data['Max Profit (Optimal Price)']
+    bar3 = plt.bar(ind+width*2, zvals, width, color = 'b') 
+    plt.xlabel("Product")
+    plt.ylabel("Profit")
+    plt.title(f"Increases in Profits for {brand_name} Products")
+    plt.xticks(ind+width, brand_data['Product']) 
+    plt.legend( (bar1, bar2, bar3), ('Original Profit', 'Max Profit (Original Price, Optimal Demand)',
+                                     'Max Profit (Optimal Price, Optimal Demand)') ) 
+    plt.xticks(rotation=70)
+    st.pyplot(fig)
+
+    st.divider()
+    # Display percent increases for company
+    st.subheader(f"Increases in Demand, Revenue, Profit for {brand_name} Company")
+    features = res['Feature']
+    cols = res.columns[1:]
+    temp = pd.DataFrame({col: res[col].apply(lambda x: f"{x:.2f}") for col in cols})
+    temp.iloc[0][:2] = res.iloc[0][1:3].apply(int)
+    temp = pd.concat([features, temp], axis=1)
+    st.table(temp)
+
+    # Display percent increases for item
+    st.subheader(f"Increases in Demand, Revenue, Profit for {brand_name}'s {title}")
+    features = res2['Feature']
+    cols = res2.columns[1:]
+    temp = pd.DataFrame({col: res2[col].apply(lambda x: f"{x:.2f}") for col in cols})
+    temp.iloc[0][:2] = res2.iloc[0][1:3].apply(int)
+    temp = pd.concat([features, temp], axis=1)
+    st.table(temp)
+
+
+
 def buttons():
     with st.form("input_form"):
         brand_name = st.selectbox("Select a Brand", ['Gucci', 'Burberry', 'Prada', 'Versace'])
@@ -208,7 +250,7 @@ def buttons():
 
         df = pd.concat([df, data], ignore_index=True)
 
-        brand_data = results[results['Brand'] == brand_name]
+        brand_data = results[results['Brand'] == brand_name].reset_index().drop(columns=['index'])
         demands, revs, profits = changes(brand_data)
         res = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
@@ -217,18 +259,11 @@ def buttons():
         res2 = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
         # Display data for selected brand
-        st.header(f"Optimized Demand, Price, Profits for {brand_name}")    
         brand_data[['Original Demand', 'Optimal Demand']] = brand_data[['Original Demand', 'Optimal Demand']].round()
         brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\
             brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
-        st.dataframe(brand_data)
-        
-        # Display percent increases for company
-        st.header(f"Increases in Demand, Revenue, Profit for {brand_name} Company")
-        st.dataframe(res)
-        # Display percent increases for item
-        st.header(f"Increases in Demand, Revenue, Profit for {title}")
-        st.dataframe(res2)
+
+        plots(brand_data, brand_name, res, title, res2)
 
 
 
