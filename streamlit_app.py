@@ -156,10 +156,31 @@ def main():
 
 # User input fields
 def plots(brand_data, brand_name, res, title, res2):
-    st.header(f"Optimized Demand, Price, Profits for {brand_name}")    
-    st.table(brand_data)
-    fig, ax = plt.subplots()
+    st.write(f"Optimal Price: {brand_data.loc[len(brand_data)-1, 'Optimal Price']}")
+    st.write(f"Predicted Demand: {int(brand_data.loc[len(brand_data)-1, 'Optimal Demand'])}")
 
+    # Display percent increases for product
+    st.subheader(f"Increases in Demand, Revenue, Profit for {brand_name}'s {title}")
+    features = res2['Feature']
+    cols = res2.columns[1:]
+    temp = pd.DataFrame({col: res2[col].apply(lambda x: f"{x:.2f}") for col in cols})
+    temp.iloc[0][:2] = res2.iloc[0][1:3].apply(int)
+    temp = pd.concat([features, temp], axis=1)
+    st.table(temp)
+
+    # Display all company's product results
+    st.divider()
+    st.header(f"Optimized Demand, Price, Profits for {brand_name}")
+    features = brand_data.iloc[:, :2]
+    cols = brand_data.columns[2:]
+    temp = pd.DataFrame({col: brand_data[col].apply(lambda x: f"{x:.2f}") for col in cols})
+    temp.iloc[:, 1] = brand_data.iloc[:, 3].apply(int)
+    temp.iloc[:, 4] = brand_data.iloc[:, 6].apply(int)
+    temp = pd.concat([features, temp], axis=1)
+    st.table(temp)
+
+    # Plot for all of company's products
+    fig, ax = plt.subplots()
     ind = brand_data.index
     width = 0.25
     xvals = brand_data['Original Profit']
@@ -187,14 +208,6 @@ def plots(brand_data, brand_name, res, title, res2):
     temp = pd.concat([features, temp], axis=1)
     st.table(temp)
 
-    # Display percent increases for item
-    st.subheader(f"Increases in Demand, Revenue, Profit for {brand_name}'s {title}")
-    features = res2['Feature']
-    cols = res2.columns[1:]
-    temp = pd.DataFrame({col: res2[col].apply(lambda x: f"{x:.2f}") for col in cols})
-    temp.iloc[0][:2] = res2.iloc[0][1:3].apply(int)
-    temp = pd.concat([features, temp], axis=1)
-    st.table(temp)
 
 
 
@@ -264,6 +277,7 @@ def buttons():
             brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
 
         plots(brand_data, brand_name, res, title, res2)
+
 
 
 
