@@ -28,7 +28,7 @@ def optimize_price(model, X_prices):
 
 # Optimizing Profit
 # Price optimization function
-def calculate_profit(item_data, price_range, model, og_demand):
+def calculate_profit(item_data, price_range, model, og_demand, graph_data):
     best_price = item_data['Price']
     max_profit = item_data['Profit']
     best_demand = og_demand
@@ -46,7 +46,9 @@ def calculate_profit(item_data, price_range, model, og_demand):
             best_price = price
             best_demand = demand
 
-    return best_demand, best_price, max_profit
+        graph_data[price] = profit
+
+    return best_demand, best_price, max_profit, graph_data
 
 
 def reverse_stats(ex, brand_map, product_map):
@@ -129,13 +131,14 @@ def main():
 
     # Test the optimization for dataset
     results = []
+    graph_data = {}
 
     for i in range(len(X)):
         sample_item = X.iloc[i].copy()
         og_demand = y.iloc[i]
         sample_price = prices[i]                # Using predicted price as max/min price in price range
         price_range = np.linspace(sample_item['Price'], sample_price, 20)
-        opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
+        opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
         results.append([opt_demand, opt_price, max_og, max_profit])
 
@@ -155,7 +158,7 @@ def main():
     return rf, df, brand_map, product_map, temp_model, results
 
 # User input fields
-def plots(brand_data, brand_name, res, title, res2):
+def plots(brand_data, brand_name, res, title, res2, graph_data):
     st.write(f"Optimal Price: {brand_data.loc[len(brand_data)-1, 'Optimal Price']}")
     st.write(f"Predicted Demand: {int(brand_data.loc[len(brand_data)-1, 'Optimal Demand'])}")
 
@@ -167,6 +170,10 @@ def plots(brand_data, brand_name, res, title, res2):
     temp.iloc[0][:2] = res2.iloc[0][1:3].apply(int)
     temp = pd.concat([features, temp], axis=1)
     st.table(temp)
+
+    # Display predicted profits associated with prices from profit optimization function
+    st.header('Price Distribution')
+    st.subheader('Histogram of Prices')
 
     # Display all company's product results
     st.divider()
@@ -237,6 +244,7 @@ def buttons():
         X = data.drop(['Demand'], axis=1)
         y = data['Demand'] 
         new_row=[]
+        graph_data={}
 
         temp_demand = rf.predict(X)
         temp_price = optimize_price(temp_model, [temp_demand])
@@ -244,7 +252,7 @@ def buttons():
         og_demand = y.iloc[0]
         sample_price = temp_price[0]
         price_range = np.linspace(sample_item['Price'], sample_price, 100)
-        opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
+        opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[0]['Price']-X.iloc[0]['Cost']) * opt_demand
         
         data = reverse_stats(data, brand_map, product_map) # after doing predictions    
@@ -267,7 +275,7 @@ def buttons():
         demands, revs, profits = changes(brand_data)
         res = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
-        item_data = brand_data[brand_data['Product']==title]
+        item_data = new_row
         demands, revs, profits = changes(item_data)
         res2 = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
@@ -276,7 +284,7 @@ def buttons():
         brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\
             brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
 
-        plots(brand_data, brand_name, res, title, res2)
+        plots(brand_data, brand_name, res, title, res2, graph_data)
 
 
 
