@@ -9,7 +9,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly as px
 
-# Calculate stats based on input data NEED TO MAKE VARIABLES GLOBAL
+# Calculate stats based on input data
 def calculate_stats(data):
     data['Profit'] = (data['Price'] - data['Cost'])*data['Demand']
     data['PriceDiff'] = data['Price'] - data['CompetitorPrice']
@@ -22,11 +22,11 @@ def mappings(data, brand_map, product_map):
     data['Product'] = data['Product'].map(product_map)
     return data
 
+# Optimize price function
 def optimize_price(model, X_prices):
     prices = model.predict(X_prices)
     return prices
 
-# Optimizing Profit
 # Price optimization function
 def calculate_profit(item_data, price_range, model, og_demand, graph_data):
     best_price = item_data['Price']
@@ -50,7 +50,7 @@ def calculate_profit(item_data, price_range, model, og_demand, graph_data):
 
     return best_demand, best_price, max_profit, graph_data
 
-
+# Reverse mapping to return brand, product names
 def reverse_stats(ex, brand_map, product_map):
     reverse_brandmap = {number: brand for brand, number in brand_map.items()}
     ex['Brand'] = ex['Brand'].map(reverse_brandmap)
@@ -58,6 +58,7 @@ def reverse_stats(ex, brand_map, product_map):
     ex['Product'] = ex['Product'].map(reverse_prodsmap)
     return ex
 
+# Track changes in features
 def changes(full):
     original_price = sum(full['Original Price'])
     optimal_price = sum(full['Optimal Price'])
@@ -75,16 +76,13 @@ def changes(full):
 # Main Streamlit app code
 @st.cache_data
 def main():
-    # Show app title and description
-    
     # Generate random data
     np.random.seed(42)
 
+    # Initial calculations and mappings
     df = pd.read_csv('luxury_real_data.csv')
     brand_map = {brand: index for index, brand in enumerate(df['Brand'].unique())}
     product_map = {products: index for index, products in enumerate(df['Product'].unique())}
-
-    # Testing
     df = calculate_stats(df)
     df = mappings(df, brand_map, product_map)
 
@@ -94,10 +92,10 @@ def main():
     X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
     X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
 
-    # Random Forest Regression
-    # Training model on training set
+    # Initial Random Forest Regression
     rf = RandomForestRegressor(random_state=42).fit(X_train, y_train)
 
+    # Hyperparameter Tuning using RandomizedSearchCV
     n_estimators = [int(x) for x in np.linspace(start = 0, stop = 1000, num = 100)]
     max_features = [1.0, 'sqrt']
     max_depth = [int(x) for x in np.linspace(1, 31, num = 6)]
@@ -105,7 +103,6 @@ def main():
     min_samples_split = [2, 5, 10]
     min_samples_leaf = [1, 2, 4]
     bootstrap = [True, False]
-
 
     random_grid = {'n_estimators': n_estimators,            # number of trees
                 'max_features': max_features,            # max splitting node features
@@ -117,19 +114,20 @@ def main():
     rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
                                 n_iter = 10, scoring='neg_mean_squared_error',
                                 cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
+    
+    # Random Forest Regerssion with optimized hyperparameters
     rf = RandomForestRegressor(**rf_ransearch.best_params_).fit(X_train, y_train)
 
-    # Predicting Price
+    # Predicting price using elastic net regression
     temp = df.copy()
     X_prices = pd.DataFrame(rf.predict(X))  # demands
     y_prices = temp['Price']
     X_1, X_2, y_1, y_2 = train_test_split(X_prices, y_prices, test_size=0.2, random_state=42)
     temp_model = ElasticNet(alpha=0.1,l1_ratio=0.5)
     temp_model.fit(X_1, y_1)
-
     prices = optimize_price(temp_model, X_prices)
 
-    # Test the optimization for dataset
+    # Profit optimization for dataset
     results = []
     graph_data = {}
 
@@ -144,6 +142,7 @@ def main():
 
     results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
 
+    # Revert brand, products back to names
     df = reverse_stats(df, brand_map, product_map)
 
     results['Brand'] = df['Brand']
@@ -151,7 +150,6 @@ def main():
     results['Original Price'] = df['Price']
     results['Original Demand'] = df['Demand']
     results['Original Profit'] = df['Profit']
-    
     results = results[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
                         'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 
@@ -170,10 +168,6 @@ def plots(brand_data, brand_name, res, title, res2, graph_data):
     temp.iloc[0][:2] = res2.iloc[0][1:3].apply(int)
     temp = pd.concat([features, temp], axis=1)
     st.table(temp)
-
-    # Display predicted profits associated with prices from profit optimization function
-    st.header('Price Distribution')
-    st.subheader('Histogram of Prices')
 
     # Display all company's product results
     st.divider()
@@ -263,10 +257,8 @@ def buttons():
         new_row['Original Price'] = data['Price']
         new_row['Original Demand'] = data['Demand']
         new_row['Original Profit'] = data['Profit']
-
         new_row = new_row[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
                         'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
-        
         results = pd.concat([results, new_row], ignore_index=True)
 
         df = pd.concat([df, data], ignore_index=True)
