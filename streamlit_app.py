@@ -1,8 +1,6 @@
 import streamlit as st
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
-from sklearn.linear_model import ElasticNet
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -21,11 +19,6 @@ def mappings(data, brand_map, product_map):
     data['Brand'] = data['Brand'].map(brand_map)
     data['Product'] = data['Product'].map(product_map)
     return data
-
-# Optimize price function
-def optimize_price(model, X_prices):
-    prices = model.predict(X_prices)
-    return prices
 
 # Price optimization function
 def calculate_profit(item_data, price_range, model, og_demand, graph_data):
@@ -118,15 +111,6 @@ def main():
     # Random Forest Regerssion with optimized hyperparameters
     rf = RandomForestRegressor(**rf_ransearch.best_params_).fit(X_train, y_train)
 
-    # Predicting price using elastic net regression
-    temp = df.copy()
-    X_prices = pd.DataFrame(rf.predict(X))  # demands
-    y_prices = temp['Price']
-    X_1, X_2, y_1, y_2 = train_test_split(X_prices, y_prices, test_size=0.2, random_state=42)
-    temp_model = ElasticNet(alpha=0.1,l1_ratio=0.5)
-    temp_model.fit(X_1, y_1)
-    prices = optimize_price(temp_model, X_prices)
-
     # Profit optimization for dataset
     results = []
     graph_data = {}
@@ -134,7 +118,7 @@ def main():
     for i in range(len(X)):
         sample_item = X.iloc[i].copy()
         og_demand = y.iloc[i]
-        sample_price = prices[i]                # Using predicted price as max/min price in price range
+        sample_price = sample_item['Price'] + 100                # Using price + 100 as max/min price in price range
         price_range = np.linspace(sample_item['Price'], sample_price, 20)
         opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
@@ -153,30 +137,27 @@ def main():
     results = results[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
                         'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 
-    return rf, df, brand_map, product_map, temp_model, results
+    return rf, df, brand_map, product_map, results
 
 # User input fields
-def plots(brand_data, brand_name, res, title, res2, graph_data):
+def plots(brand_data, brand_name, brand_change, title, item_change, graph_data):
     st.write(f"Optimal Price: {brand_data.loc[len(brand_data)-1, 'Optimal Price']}")
     st.write(f"Predicted Demand: {int(brand_data.loc[len(brand_data)-1, 'Optimal Demand'])}")
 
-    # Display percent increases for product
+    # Display percent increases for item
     st.subheader(f"Increases in Demand, Revenue, Profit for {brand_name}'s {title}")
-    features = res2['Feature']
-    cols = res2.columns[1:]
-    temp = pd.DataFrame({col: res2[col].apply(lambda x: f"{x:.2f}") for col in cols})
-    temp.iloc[0][:2] = res2.iloc[0][1:3].apply(int)
+    features = item_change['Feature']
+    cols = item_change.columns[1:]
+    temp = pd.DataFrame({col: item_change[col].apply(lambda x: f"{x:.2f}") for col in cols})
     temp = pd.concat([features, temp], axis=1)
     st.table(temp)
 
     # Display all company's product results
     st.divider()
     st.header(f"Optimized Demand, Price, Profits for {brand_name}")
-    features = brand_data.iloc[:, :2]
+    features = brand_data.iloc[:, 1]
     cols = brand_data.columns[2:]
     temp = pd.DataFrame({col: brand_data[col].apply(lambda x: f"{x:.2f}") for col in cols})
-    temp.iloc[:, 1] = brand_data.iloc[:, 3].apply(int)
-    temp.iloc[:, 4] = brand_data.iloc[:, 6].apply(int)
     temp = pd.concat([features, temp], axis=1)
     st.table(temp)
 
@@ -202,14 +183,11 @@ def plots(brand_data, brand_name, res, title, res2, graph_data):
     st.divider()
     # Display percent increases for company
     st.subheader(f"Increases in Demand, Revenue, Profit for {brand_name} Company")
-    features = res['Feature']
-    cols = res.columns[1:]
-    temp = pd.DataFrame({col: res[col].apply(lambda x: f"{x:.2f}") for col in cols})
-    temp.iloc[0][:2] = res.iloc[0][1:3].apply(int)
+    features = brand_change['Feature']
+    cols = brand_change.columns[1:]
+    temp = pd.DataFrame({col: brand_change[col].apply(lambda x: f"{x:.2f}") for col in cols})
     temp = pd.concat([features, temp], axis=1)
     st.table(temp)
-
-
 
 
 def buttons():
@@ -226,7 +204,7 @@ def buttons():
 
     if submitted:
         # Encode user input
-        rf, df, brand_map, product_map, temp_model, results = main()
+        rf, df, brand_map, product_map, results = main()
 
         data = {'Brand': brand_name, 'Product': title, 'Cost': cost,
                 'Price': price, 'CompetitorPrice': competitor_price, 'Demand': demand}
@@ -240,11 +218,9 @@ def buttons():
         new_row=[]
         graph_data={}
 
-        temp_demand = rf.predict(X)
-        temp_price = optimize_price(temp_model, [temp_demand])
         sample_item = X.iloc[0].copy()
         og_demand = y.iloc[0]
-        sample_price = temp_price[0]
+        sample_price = sample_item['Price'] + 100
         price_range = np.linspace(sample_item['Price'], sample_price, 100)
         opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[0]['Price']-X.iloc[0]['Cost']) * opt_demand
@@ -265,18 +241,18 @@ def buttons():
 
         brand_data = results[results['Brand'] == brand_name].reset_index().drop(columns=['index'])
         demands, revs, profits = changes(brand_data)
-        res = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
+        brand_change = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
         item_data = new_row
         demands, revs, profits = changes(item_data)
-        res2 = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
+        item_change = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
         # Display data for selected brand
         brand_data[['Original Demand', 'Optimal Demand']] = brand_data[['Original Demand', 'Optimal Demand']].round()
         brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\
             brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
 
-        plots(brand_data, brand_name, res, title, res2, graph_data)
+        plots(brand_data, brand_name, brand_change, title, item_change, graph_data)
 
 
 
