@@ -1,0 +1,21 @@
+Brand,Product,Cost,Price,CompetitorPrice,Demand
+Gucci,Handbag,253.5,1690,1200,18
+Gucci,Women's Shoes,178.5,1190,1150,55
+Gucci,Men's Shoes,163.5,1090,1000,72
+Gucci,Men's Wallets,60,400,375,30
+Gucci,Women's Wallet,81,540,550,47
+Burberry,Handbag,292.5,1950,3950,12
+Burberry,Women's Shoes,119.25,795,780,36
+Burberry,Men's Shoes,97.5,650,920,44
+Burberry,Men's Wallets,82.5,550,950,39
+Burberry,Women's Wallet,88.5,590,415,100
+Prada,Handbag,765,5100,1490,19
+Prada,Women's Shoes,183,1220,3950,23
+Prada,Men's Shoes,187.5,1250,780,62
+Prada,Men's Wallets,119.25,795,895,79
+Prada,Women's Wallet,112.5,750,310,49
+Versace,Handbag,284.25,1895,1850,43
+Versace,Women's Shoes,153.75,1025,1150,43
+Versace,Men's Shoes,148.5,990,930,49
+Versace,Men's Wallets,74.25,495,570,61
+Versace,Women's Wallet,112.5,750,680,78

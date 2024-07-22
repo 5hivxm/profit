@@ -138,9 +138,10 @@ def main():
     return rf, df, results
 
 # User input fields
-def plots(brand_data, brand_name, brand_change, title, item_change, graph_data):
-    st.write(f"Optimal Price: {brand_data.loc[len(brand_data)-1, 'Optimal Price']}")
-    st.write(f"Predicted Demand: {int(brand_data.loc[len(brand_data)-1, 'Optimal Demand'])}")
+def plots(brand_data, brand_name, brand_change, title, item_data, item_change, graph_data):
+    # Display percent increases for item
+    st.write(f"Optimal Price: {round(item_data.loc[len(item_data)-1, 'Optimal Price'], 2)}")
+    st.write(f"Predicted Demand: {int(item_data.loc[len(item_data)-1, 'Optimal Demand'])}")
 
     # Display percent increases for item
     st.subheader(f"Increases in Demand, Revenue, Profit for {brand_name}'s {title}")
@@ -240,7 +241,7 @@ def buttons():
         demands, revs, profits = changes(brand_data)
         brand_change = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
-        item_data = new_row
+        item_data = new_row.reset_index()
         demands, revs, profits = changes(item_data)
         item_change = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])
 
@@ -249,7 +250,9 @@ def buttons():
         brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\
             brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
 
-        plots(brand_data, brand_name, brand_change, title, item_change, graph_data)
+        plots(brand_data, brand_name, brand_change, title, item_data, item_change, graph_data)
+
+
 
 
 
@@ -258,6 +261,5 @@ if __name__ == '__main__':
     st.title("Optimal Price for Luxury Fashion Brands")
     main()
     buttons()
-
 
 
