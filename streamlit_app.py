@@ -6,7 +6,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly as px
-
+ 
 # Calculate stats based on input data
 def calculate_stats(data):
     data['Profit'] = (data['Price'] - data['Cost'])*data['Demand']
