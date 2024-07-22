@@ -1,12 +1,14 @@
 import streamlit as st
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.preprocessing import OneHotEncoder
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly as px
- 
+import re
+
 # Calculate stats based on input data
 def calculate_stats(data):
     data['Profit'] = (data['Price'] - data['Cost'])*data['Demand']
@@ -15,10 +17,13 @@ def calculate_stats(data):
     return data
 
 # Creating mapping for categorical values
-def mappings(data, brand_map, product_map):
-    data['Brand'] = data['Brand'].map(brand_map)
-    data['Product'] = data['Product'].map(product_map)
-    return data
+def mappings(data):
+    one_hot = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+    one_hot.fit_transform(data[['Brand', 'Product']])
+    df_encoded = pd.DataFrame(one_hot.transform(data[['Brand', 'Product']]), columns=one_hot.get_feature_names_out())
+    df_encoded.index = data.index
+    df_encoded = pd.concat([data, df_encoded], axis=1)
+    return df_encoded
 
 # Price optimization function
 def calculate_profit(item_data, price_range, model, og_demand, graph_data):
@@ -44,11 +49,8 @@ def calculate_profit(item_data, price_range, model, og_demand, graph_data):
     return best_demand, best_price, max_profit, graph_data
 
 # Reverse mapping to return brand, product names
-def reverse_stats(ex, brand_map, product_map):
-    reverse_brandmap = {number: brand for brand, number in brand_map.items()}
-    ex['Brand'] = ex['Brand'].map(reverse_brandmap)
-    reverse_prodsmap = {number: prods for prods, number in product_map.items()}
-    ex['Product'] = ex['Product'].map(reverse_prodsmap)
+def reverse_stats(ex):
+    ex = ex[['Brand', 'Product', 'Price', 'Cost', 'CompetitorPrice', 'Demand', 'Profit', 'PriceDiff', 'Markup']]
     return ex
 
 # Track changes in features
@@ -74,17 +76,16 @@ def main():
 
     # Initial calculations and mappings
     df = pd.read_csv('luxury_real_data.csv')
-    brand_map = {brand: index for index, brand in enumerate(df['Brand'].unique())}
-    product_map = {products: index for index, products in enumerate(df['Product'].unique())}
+    df = df.drop('Competitor', axis=1)
     df = calculate_stats(df)
-    df = mappings(df, brand_map, product_map)
+    df = mappings(df)
 
     # Define features and target
     y = df['Demand']
-    X = df.drop(['Demand', 'Competitor'], axis=1)
+    X = df.drop(['Demand', 'Brand', 'Product'], axis=1)
+    X = X.reindex(sorted(X.columns), axis=1)
     X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
     X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
-
     # Initial Random Forest Regression
     rf = RandomForestRegressor(random_state=42).fit(X_train, y_train)
 
@@ -105,7 +106,7 @@ def main():
                 'bootstrap': bootstrap}                  # replacement or not
 
     rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
-                                n_iter = 10, scoring='neg_mean_squared_error',
+                                n_iter = 20, scoring='neg_mean_squared_error',
                                 cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
     
     # Random Forest Regerssion with optimized hyperparameters
@@ -118,8 +119,8 @@ def main():
     for i in range(len(X)):
         sample_item = X.iloc[i].copy()
         og_demand = y.iloc[i]
-        sample_price = sample_item['Price'] + 100                # Using price + 100 as max/min price in price range
-        price_range = np.linspace(sample_item['Price'], sample_price, 100)
+        sample_price = sample_item['Price'] + 500                # Using price + 500 as max/min price in price range
+        price_range = np.linspace(sample_item['Price'], sample_price, 50)
         opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
         results.append([opt_demand, opt_price, max_og, max_profit])
@@ -127,7 +128,7 @@ def main():
     results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
 
     # Revert brand, products back to names
-    df = reverse_stats(df, brand_map, product_map)
+    df = reverse_stats(df)
 
     results['Brand'] = df['Brand']
     results['Product'] = df['Product']
@@ -137,7 +138,7 @@ def main():
     results = results[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
                         'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
 
-    return rf, df, brand_map, product_map, results
+    return rf, df, results
 
 # User input fields
 def plots(brand_data, brand_name, brand_change, title, item_change, graph_data):
@@ -204,40 +205,39 @@ def buttons():
 
     if submitted:
         # Encode user input
-        rf, df, brand_map, product_map, results = main()
+        rf, df, results = main()
 
         data = {'Brand': brand_name, 'Product': title, 'Cost': cost,
                 'Price': price, 'CompetitorPrice': competitor_price, 'Demand': demand}
+        
         data = pd.DataFrame(data, index=[0])
         data = calculate_stats(data)
-        data = mappings(data, brand_map, product_map)
-        data = data[['Brand', 'Product', 'Cost', 'Price',
-                    'CompetitorPrice', 'Demand', 'Profit', 'PriceDiff', 'Markup']]
-        X = data.drop(['Demand'], axis=1)
-        y = data['Demand'] 
-        new_row=[]
+        df = pd.concat([df, data], ignore_index=True)
+        df = mappings(df)
+        data = pd.DataFrame([df.loc[len(df)-1]])
+        y = data['Demand']
+        X = data.drop(['Demand', 'Brand', 'Product'], axis=1)
+        X = X.reindex(sorted(X.columns), axis=1)
+        new_row={}
         graph_data={}
-
         sample_item = X.iloc[0].copy()
         og_demand = y.iloc[0]
-        sample_price = sample_item['Price'] + 100
+        sample_price = sample_item['Price'] + 500
         price_range = np.linspace(sample_item['Price'], sample_price, 100)
         opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[0]['Price']-X.iloc[0]['Cost']) * opt_demand
-        
-        data = reverse_stats(data, brand_map, product_map) # after doing predictions    
-        new_row.append([opt_demand, opt_price, max_og, max_profit])
-        new_row = pd.DataFrame(new_row, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
-        new_row['Brand'] = data['Brand']
-        new_row['Product'] = data['Product']
-        new_row['Original Price'] = data['Price']
-        new_row['Original Demand'] = data['Demand']
-        new_row['Original Profit'] = data['Profit']
-        new_row = new_row[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
-                        'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
-        results = pd.concat([results, new_row], ignore_index=True)
 
-        df = pd.concat([df, data], ignore_index=True)
+        data = reverse_stats(data) # after doing predictions
+        
+        new_row = {'Brand': brand_name, 'Product': title, 
+                   'Original Price': price, 'Original Demand': demand,
+                   'Original Profit': data['Profit'], 'Optimal Demand': opt_demand, 
+                   'Optimal Price': opt_price, 
+                   'Max Profit (Original Price)': max_og, 
+                   'Max Profit (Optimal Price)': max_profit
+        }
+        new_row = pd.DataFrame(new_row)
+        results = pd.concat([results, new_row], ignore_index=True)
 
         brand_data = results[results['Brand'] == brand_name].reset_index().drop(columns=['index'])
         demands, revs, profits = changes(brand_data)
