@@ -17,12 +17,12 @@ def calculate_stats(data):
     return data
 
 # Creating mapping for categorical values
-def mappings(data):
+def mappings(tes):
     one_hot = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-    one_hot.fit_transform(data[['Brand', 'Product']])
-    df_encoded = pd.DataFrame(one_hot.transform(data[['Brand', 'Product']]), columns=one_hot.get_feature_names_out())
-    df_encoded.index = data.index
-    df_encoded = pd.concat([data, df_encoded], axis=1)
+    one_hot.fit_transform(tes[['Brand', 'Product']])
+    df_encoded = pd.DataFrame(one_hot.transform(tes[['Brand', 'Product']]), columns=one_hot.get_feature_names_out())
+    df_encoded.index = tes.index
+    df_encoded = pd.concat([tes, df_encoded], axis=1)
     return df_encoded
 
 # Price optimization function
@@ -71,9 +71,6 @@ def changes(full):
 # Main Streamlit app code
 @st.cache_data
 def main():
-    # Generate random data
-    np.random.seed(42)
-
     # Initial calculations and mappings
     df = pd.read_csv('luxury_real_data.csv')
     df = df.drop('Competitor', axis=1)
