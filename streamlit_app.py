@@ -3,10 +3,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 import pandas as pd
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
-import plotly as px
- 
+import pickle
+
 # Calculate stats based on input data
 def calculate_stats(data):
     data['Profit'] = (data['Price'] - data['Cost'])*data['Demand']
@@ -69,10 +68,7 @@ def changes(full):
 # Main Streamlit app code
 @st.cache_data
 def main():
-    # Generate random data
-    np.random.seed(42)
 
-    # Initial calculations and mappings
     df = pd.read_csv('luxury_real_data.csv')
     brand_map = {brand: index for index, brand in enumerate(df['Brand'].unique())}
     product_map = {products: index for index, products in enumerate(df['Product'].unique())}
@@ -82,34 +78,9 @@ def main():
     # Define features and target
     y = df['Demand']
     X = df.drop(['Demand', 'Competitor'], axis=1)
-    X_train_or, X_test, y_train_or, y_test = train_test_split(X, y, test_size=0.2)
-    X_train, X_val, y_train, y_val = train_test_split(X_train_or, y_train_or, test_size=0.25)
 
-    # Initial Random Forest Regression
-    rf = RandomForestRegressor(random_state=42).fit(X_train, y_train)
-
-    # Hyperparameter Tuning using RandomizedSearchCV
-    n_estimators = [int(x) for x in np.linspace(start = 0, stop = 1000, num = 100)]
-    max_features = [1.0, 'sqrt']
-    max_depth = [int(x) for x in np.linspace(1, 31, num = 6)]
-    max_depth.append(None)
-    min_samples_split = [2, 5, 10]
-    min_samples_leaf = [1, 2, 4]
-    bootstrap = [True, False]
-
-    random_grid = {'n_estimators': n_estimators,            # number of trees
-                'max_features': max_features,            # max splitting node features
-                'max_depth': max_depth,                  # max levels in each tree
-                'min_samples_split': min_samples_split,  # min data in a pre-split node
-                'min_samples_leaf': min_samples_leaf,    # min data allowed in leaf
-                'bootstrap': bootstrap}                  # replacement or not
-
-    rf_ransearch = RandomizedSearchCV(estimator=rf, param_distributions=random_grid,
-                                n_iter = 10, scoring='neg_mean_squared_error',
-                                cv = 5, verbose=2, random_state=42, n_jobs=-1).fit(X_train,y_train)
-    
-    # Random Forest Regerssion with optimized hyperparameters
-    rf = RandomForestRegressor(**rf_ransearch.best_params_).fit(X_train, y_train)
+    filename = "random_forest.pickle"
+    rf = pickle.load(open(filename, "rb"))
 
     # Profit optimization for dataset
     results = []
