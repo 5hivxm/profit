@@ -4,10 +4,7 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import OneHotEncoder
 import pandas as pd
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
-import plotly as px
-import re
 
 # Calculate stats based on input data
 def calculate_stats(data):
@@ -26,7 +23,7 @@ def mappings(tes):
     return df_encoded
 
 # Price optimization function
-def calculate_profit(item_data, price_range, model, og_demand, graph_data):
+def calculate_profit(item_data, price_range, model, og_demand):
     best_price = item_data['Price']
     max_profit = item_data['Profit']
     best_demand = og_demand
@@ -44,9 +41,8 @@ def calculate_profit(item_data, price_range, model, og_demand, graph_data):
             best_price = price
             best_demand = demand
 
-        graph_data[price] = profit
 
-    return best_demand, best_price, max_profit, graph_data
+    return best_demand, best_price, max_profit
 
 # Reverse mapping to return brand, product names
 def reverse_stats(ex):
@@ -95,7 +91,7 @@ def main():
     min_samples_leaf = [1, 2, 4]
     bootstrap = [True, False]
 
-    random_grid = {'n_estimators': n_estimators,            # number of trees
+    random_grid = {'n_estimators': n_estimators,         # number of trees
                 'max_features': max_features,            # max splitting node features
                 'max_depth': max_depth,                  # max levels in each tree
                 'min_samples_split': min_samples_split,  # min data in a pre-split node
@@ -109,16 +105,27 @@ def main():
     # Random Forest Regerssion with optimized hyperparameters
     rf = RandomForestRegressor(**rf_ransearch.best_params_).fit(X_train, y_train)
 
-    # Profit optimization for dataset
+    # Predicting Price
+    prices = {}
+    temp = df.copy()
+    X_prices = rf.predict(X)          # demands
+    y_prices = temp['Price']          # prices
+    for i in range(len(X_prices)):
+        dem = X_prices[i]
+        pric = y_prices[i]
+        if dem < 1:
+            dem = 1
+        prices[i] = np.log(dem)/np.log(pric)
+    prices = list(prices.values())
     results = []
-    graph_data = {}
 
     for i in range(len(X)):
         sample_item = X.iloc[i].copy()
         og_demand = y.iloc[i]
-        sample_price = sample_item['Price'] + 500                # Using price + 500 as max/min price in price range
-        price_range = np.linspace(sample_item['Price'], sample_price, 50)
-        opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
+        sample_price_0 = sample_item['Price']*(1-prices[i])
+        sample_price_1 = sample_item['Price']*(1+prices[i])
+        price_range = np.linspace(sample_price_0, sample_price_1, 50)
+        opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
         max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
         results.append([opt_demand, opt_price, max_og, max_profit])
 
@@ -137,8 +144,7 @@ def main():
 
     return rf, df, results
 
-# User input fields
-def plots(brand_data, brand_name, brand_change, title, item_data, item_change, graph_data):
+def plots(brand_data, brand_name, brand_change, title, item_data, item_change):
     # Display percent increases for item
     st.write(f"Optimal Price: {round(item_data.loc[len(item_data)-1, 'Optimal Price'], 2)}")
     st.write(f"Predicted Demand: {int(item_data.loc[len(item_data)-1, 'Optimal Demand'])}")
@@ -150,9 +156,9 @@ def plots(brand_data, brand_name, brand_change, title, item_data, item_change, g
     temp = pd.DataFrame({col: item_change[col].apply(lambda x: f"{x:.2f}") for col in cols})
     temp = pd.concat([features, temp], axis=1)
     st.table(temp)
+    st.divider()
 
     # Display all company's product results
-    st.divider()
     st.header(f"Optimized Demand, Price, Profits for {brand_name}")
     features = brand_data.iloc[:, 1]
     cols = brand_data.columns[2:]
@@ -202,7 +208,6 @@ def buttons():
         submitted = st.form_submit_button("Submit")
 
     if submitted:
-        # Encode user input
         rf, df, results = main()
 
         data = {'Brand': brand_name, 'Product': title, 'Cost': cost,
@@ -216,23 +221,30 @@ def buttons():
         y = data['Demand']
         X = data.drop(['Demand', 'Brand', 'Product'], axis=1)
         X = X.reindex(sorted(X.columns), axis=1)
-        new_row={}
-        graph_data={}
+
+        # Predicting Price
+        temp_demand = rf.predict(X)         # demands
+        y_prices = data['Price']            # prices
+        if temp_demand < 1:
+            temp_demand = 1
+        sample_price = np.log(temp_demand)/np.log(y_prices)     # elasticity
+
         sample_item = X.iloc[0].copy()
         og_demand = y.iloc[0]
-        sample_price = sample_item['Price'] + 500
-        price_range = np.linspace(sample_item['Price'], sample_price, 100)
-        opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
+        sample_price_0 = sample_item['Price']*(1-sample_price)
+        sample_price_1 = sample_item['Price']*(1+sample_price)
+        price_range = np.linspace(sample_price_0, sample_price_1, 100)
+        opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
         max_og = (X.iloc[0]['Price']-X.iloc[0]['Cost']) * opt_demand
 
         data = reverse_stats(data) # after doing predictions
         
         new_row = {'Brand': brand_name, 'Product': title, 
-                   'Original Price': price, 'Original Demand': demand,
-                   'Original Profit': data['Profit'], 'Optimal Demand': opt_demand, 
-                   'Optimal Price': opt_price, 
-                   'Max Profit (Original Price)': max_og, 
-                   'Max Profit (Optimal Price)': max_profit
+                    'Original Price': price, 'Original Demand': demand,
+                    'Original Profit': data['Profit'], 'Optimal Demand': opt_demand, 
+                    'Optimal Price': opt_price, 
+                    'Max Profit (Original Price)': max_og, 
+                    'Max Profit (Optimal Price)': max_profit
         }
         new_row = pd.DataFrame(new_row)
         results = pd.concat([results, new_row], ignore_index=True)
@@ -250,9 +262,7 @@ def buttons():
         brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']] =\
             brand_data[['Original Price', 'Original Profit', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']].round(2)
 
-        plots(brand_data, brand_name, brand_change, title, item_data, item_change, graph_data)
-
-
+        plots(brand_data, brand_name, brand_change, title, item_data, item_change)
 
 
 
