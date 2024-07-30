@@ -109,3 +109,8 @@ def main():
     pickle.dump(rf, open(filename, "wb"))
 
     st.header('done')
+
+
+if __name__ == '__main__':
+    st.title("Optimal Price for Luxury Fashion Brands")
+    main()

@@ -90,7 +90,7 @@ def main():
         sample_item = X.iloc[i].copy()
         og_demand = y.iloc[i]
         sample_price = sample_item['Price'] + 100                # Using price + 100 as max/min price in price range
-        price_range = np.linspace(sample_item['Price'], sample_price, 100)
+        price_range = np.linspace(sample_item['Price'], sample_price, 50)
         opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
         results.append([opt_demand, opt_price, max_og, max_profit])
@@ -193,7 +193,7 @@ def buttons():
         sample_item = X.iloc[0].copy()
         og_demand = y.iloc[0]
         sample_price = sample_item['Price'] + 100
-        price_range = np.linspace(sample_item['Price'], sample_price, 100)
+        price_range = np.linspace(sample_item['Price'], sample_price, 50)
         opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
         max_og = (X.iloc[0]['Price']-X.iloc[0]['Cost']) * opt_demand
         
