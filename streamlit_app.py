@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import json
 
 # Calculate stats based on input data
 def calculate_stats(data):
@@ -69,44 +70,16 @@ def changes(full):
 @st.cache_data
 def main():
 
-    df = pd.read_csv('luxury_real_data.csv')
-    brand_map = {brand: index for index, brand in enumerate(df['Brand'].unique())}
-    product_map = {products: index for index, products in enumerate(df['Product'].unique())}
-    df = calculate_stats(df)
-    df = mappings(df, brand_map, product_map)
-
-    # Define features and target
-    y = df['Demand']
-    X = df.drop(['Demand', 'Competitor'], axis=1)
-
     filename = "random_forest.pickle"
     rf = pickle.load(open(filename, "rb"))
+    results = pd.read_csv('results.csv')
+    df = pd.read_csv('df.csv')
 
-    # Profit optimization for dataset
-    results = []
-    graph_data = {}
+    with open('brand_map.json', 'r') as f: 
+        brand_map = json.load(f)
 
-    for i in range(len(X)):
-        sample_item = X.iloc[i].copy()
-        og_demand = y.iloc[i]
-        sample_price = sample_item['Price'] + 100                # Using price + 100 as max/min price in price range
-        price_range = np.linspace(sample_item['Price'], sample_price, 50)
-        opt_demand, opt_price, max_profit, graph_data = calculate_profit(sample_item, price_range, rf, og_demand, graph_data)
-        max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
-        results.append([opt_demand, opt_price, max_og, max_profit])
-
-    results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
-
-    # Revert brand, products back to names
-    df = reverse_stats(df, brand_map, product_map)
-
-    results['Brand'] = df['Brand']
-    results['Product'] = df['Product']
-    results['Original Price'] = df['Price']
-    results['Original Demand'] = df['Demand']
-    results['Original Profit'] = df['Profit']
-    results = results[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
-                        'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
+    with open('product_map.json', 'r') as f: 
+        product_map = json.load(f)
 
     return rf, df, brand_map, product_map, results
 
@@ -210,7 +183,6 @@ def buttons():
         results = pd.concat([results, new_row], ignore_index=True)
 
         df = pd.concat([df, data], ignore_index=True)
-
         brand_data = results[results['Brand'] == brand_name].reset_index().drop(columns=['index'])
         demands, revs, profits = changes(brand_data)
         brand_change = pd.DataFrame([demands, revs, profits], columns=['Feature', 'Original Value', 'Optimized Value', 'Percent Increase'])

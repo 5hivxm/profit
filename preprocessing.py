@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+import json
 
 # Calculate stats based on input data
 def calculate_stats(data):
@@ -20,7 +21,7 @@ def mappings(data, brand_map, product_map):
     return data
 
 # Price optimization function
-def calculate_profit(item_data, price_range, model, og_demand, graph_data):
+def calculate_profit(item_data, price_range, model, og_demand):
     best_price = item_data['Price']
     max_profit = item_data['Profit']
     best_demand = og_demand
@@ -38,9 +39,8 @@ def calculate_profit(item_data, price_range, model, og_demand, graph_data):
             best_price = price
             best_demand = demand
 
-        graph_data[price] = profit
 
-    return best_demand, best_price, max_profit, graph_data
+    return best_demand, best_price, max_profit
 
 # Reverse mapping to return brand, product names
 def reverse_stats(ex, brand_map, product_map):
@@ -108,7 +108,42 @@ def main():
     filename = "random_forest.pickle"
     pickle.dump(rf, open(filename, "wb"))
 
-    st.header('done')
+    # Profit optimization for dataset
+    results = []
+
+    for i in range(len(X)):
+        sample_item = X.iloc[i].copy()
+        og_demand = y.iloc[i]
+        sample_price = sample_item['Price'] + 100                # Using price + 100 as max/min price in price range
+        price_range = np.linspace(sample_item['Price'], sample_price, 50)
+        opt_demand, opt_price, max_profit = calculate_profit(sample_item, price_range, rf, og_demand)
+        max_og = (X.iloc[i]['Price']-X.iloc[i]['Cost']) * opt_demand
+        results.append([opt_demand, opt_price, max_og, max_profit])
+
+    results = pd.DataFrame(results, columns=['Optimal Demand', 'Optimal Price', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)'])
+
+    # Revert brand, products back to names
+    df = reverse_stats(df, brand_map, product_map)
+
+    results['Brand'] = df['Brand']
+    results['Product'] = df['Product']
+    results['Original Price'] = df['Price']
+    results['Original Demand'] = df['Demand']
+    results['Original Profit'] = df['Profit']
+    results = results[['Brand', 'Product', 'Original Price', 'Original Demand', 'Original Profit', 'Optimal Price', 
+                        'Optimal Demand', 'Max Profit (Original Price)', 'Max Profit (Optimal Price)']]
+
+    results.to_csv('results.csv', index=False)
+    df.to_csv('df.csv', index=False)  
+
+    with open('brand_map.json', 'w') as f: 
+        json.dump(brand_map, f)
+
+    with open('product_map.json', 'w') as f: 
+        json.dump(product_map, f)
+
+
+    st.write('Done')
 
 
 if __name__ == '__main__':
